@@ -1,0 +1,994 @@
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "institution",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_822fe367"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d23b5953fd19c8ab95df8da3b6de219a",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "e4e2204d5436cbc04e5ab681380976d5",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "2c7a535734a93b42fc191b172d1f07df",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "5871e6c76dcc6d4d6565a4596373426a",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1498019d754bf32a325b5f4bd0c11a55",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "processor",
+  "type": "role",
+  "canonical_id": "gdpr:ent_d825be6f"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "cd360510d0f9081dc6453ee893200d53",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "accountability",
+  "type": "principle",
+  "canonical_id": "eth:accountability"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "1f81c52b0a20d2f66d214d5c9ec58af8",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b9c09a046d52e1b70dd54b671a987b66",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "6f545bd19ef2c00cabffd28c9147fb82",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "biometric data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_ae8595ca"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "276602125c216a8af730321aad052884",
+  "name": "genetic data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_35798f81"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "biometric data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_ae8595ca"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "f5228e81d3560ad689023041bb33e34d",
+  "name": "genetic data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_35798f81"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "biometric data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_ae8595ca"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "genetic data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_35798f81"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "4d175d5dcb0128bb4e67260aec8c1d9b",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7a49007e62be2dbf1e34d626af29399d",
+  "name": "biometric data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_ae8595ca"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "transparency",
+  "type": "principle",
+  "canonical_id": "eth:transparency"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b744fabe935792805d309f2c150929ea",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "c1ad8461e55a9663b021c533ff4040c4",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d29f944f14f0b772371f64b0f24c8375",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "b970d3c3d3c506be4385feca2296a94e",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "584ac00d3337f00288bfd7919fc40122",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d302351e190c922f486f682ebb3a54f8",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d302351e190c922f486f682ebb3a54f8",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d302351e190c922f486f682ebb3a54f8",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d302351e190c922f486f682ebb3a54f8",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "d302351e190c922f486f682ebb3a54f8",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "supervisory authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_2c521feb"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "005c98dbd9f660246213bbf275569ebc",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "7aa1d197f3478040fd23e0fe4589d3a4",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "91c5e224bcea7ec857c4b9a6d0eb919c",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "authority",
+  "type": "actor",
+  "canonical_id": "gdpr:ent_8f76fd50"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "45dacef384b35935a1b16c234c95070b",
+  "name": "Section",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_dfca5da5"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "243fe2730fb5108b3ca16eee75edf4c8",
+  "name": "Member State",
+  "type": "jurisdiction",
+  "canonical_id": "gdpr:ent_684889c0"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "243fe2730fb5108b3ca16eee75edf4c8",
+  "name": "controller",
+  "type": "role",
+  "canonical_id": "gdpr:ent_c1472135"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "243fe2730fb5108b3ca16eee75edf4c8",
+  "name": "data subject",
+  "type": "role",
+  "canonical_id": "gdpr:ent_377fb4e8"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "243fe2730fb5108b3ca16eee75edf4c8",
+  "name": "personal data",
+  "type": "data_type",
+  "canonical_id": "gdpr:ent_d85533ba"
+}
+{
+  "doc_id": "gdpr",
+  "passage_id": "243fe2730fb5108b3ca16eee75edf4c8",
+  "name": "Article",
+  "type": "reference",
+  "canonical_id": "gdpr:ent_29d94922"
+}

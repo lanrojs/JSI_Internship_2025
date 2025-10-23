@@ -33,16 +33,12 @@ from collections import OrderedDict
 # ==============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Back-compat: if INPUT_PATH is a valid file, it's used without prompting.
-# Otherwise, we prompt from INPUT_DIR (defaults to BASE_DIR).
-DEFAULT_INPUT = None  # no hardcoded file by default
+DEFAULT_INPUT = None
 DEFAULT_INPUT_DIR = BASE_DIR
 
 CONFIG = {
     "INPUT_PATH": DEFAULT_INPUT,
     "INPUT_DIR": DEFAULT_INPUT_DIR,
-
-    # Kept for backward compat; not used for output naming anymore.
     "OUT_DIR": os.path.join(BASE_DIR, "out"),
 
     "EMBED_MODEL": "BAAI/bge-small-en-v1.5",
@@ -51,15 +47,9 @@ CONFIG = {
     "BM25_K": 2,
     "VEC_K": 2,
 
-    # Updated generation settings
     "MAX_TOKENS": 1024,
     "TEMPERATURE": 0,
 
-    # Removed legacy char caps:
-    # "COMPACT_MAX_CHARS": ...
-    # "PROMPT_PASSAGE_MAX_CHARS": ...
-
-    # Updated chunking settings
     "SENT_TARGET_WORDS": 400,
     "SENT_OVERLAP": 5,
 
@@ -132,7 +122,6 @@ def pick_input_txt(base_dir: str) -> str:
         path_try = os.path.join(base_dir, choice)
         if choice in files:
             return path_try
-        # also allow a direct relative/absolute path inside base_dir
         if os.path.isfile(path_try):
             return path_try
         raise RuntimeError(f"'{choice}' not found among listed files.")
