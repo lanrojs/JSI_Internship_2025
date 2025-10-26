@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-bge_chunker.py — Clean (via process.py) + chunk .txt files using BGE-small token counts.
+chunking.py — Clean (via process.py) + chunk .txt files using BGE-small token counts.
 
 Boundary rules:
   - Start: '(' or a LETTER (A–Z/a–z).  ❌ Not a digit.

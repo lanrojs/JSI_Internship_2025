@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-clean_text.py — Simple text preprocessor for .txt files.
+process_text.py — Simple text preprocessor for .txt files.
 
 - Removes newlines by default (turns them into spaces)
 - Collapses multiple whitespace (spaces/tabs/newlines) into a single space

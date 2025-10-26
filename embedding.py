@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-ingest_to_sqlite.py — Clean -> Chunk -> Embed -> Store in SQLite AND write chunks JSON.
+embedding.py — Clean -> Chunk -> Embed -> Store in SQLite AND write chunks JSON.
 
 Defaults:
   - Chunk size: 300 BGE tokens
