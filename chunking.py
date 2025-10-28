@@ -227,10 +227,9 @@ def main():
     if args.output:
         output_path = args.output
     else:
-        if args.input.is_file():
-            output_path = args.input.with_name(f"{args.input.stem}_chunks.json")
-        else:
-            output_path = args.input.with_name(f"{args.input.name}_chunks.json")
+        base = args.input.stem if args.input.is_file() else args.input.name
+        base = re.sub(r'_cleaned$', '', base)  # drop trailing "_cleaned" if present
+        output_path = args.input.with_name(f"{base}_chunks.json")
 
     results: List[Dict[str, str]] = []
 

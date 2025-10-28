@@ -26,7 +26,8 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
-import urllib.request, urllib.error, urllib.parse
+import urllib.request, urllib.error
+import re
 
 PROMPT_TEMPLATE = """You are a helpful assistant that improves text chunks for retrieval systems.
 
@@ -121,7 +122,8 @@ def main():
         print(f"[!] Input not found: {args.input}", file=sys.stderr, flush=True)
         sys.exit(1)
 
-    out_path = args.input.with_name(f"{args.input.stem}_contextualized.json")
+    base = re.sub(r'(_cleaned|_chunks)$', '', args.input.stem)
+    out_path = args.input.with_name(f"{base}_contextualized.json")
 
     # Load input JSON
     try:
@@ -221,6 +223,17 @@ def main():
 
         if processed % args.progress_every == 0 or processed == total:
             print(f"[{processed}/{total}] contextualized (ok={success}, empty={empty})", flush=True)
+
+    def remove_newlines(s: str) -> str:
+    # turn any newlines into spaces; trim outer whitespace
+        return s.replace('\n', ' ').replace('\r', ' ').strip()
+
+    # sanitize multiline fields so they don't contain literal \n in JSON
+    for r in output_rows:
+        for k in ("chunk", "contextualized_chunk", "merged_chunk"):
+            v = r.get(k)
+            if isinstance(v, str):
+                r[k] = remove_newlines(v)
 
     # Write output (overwrite)
     out_path.write_text(json.dumps(output_rows, ensure_ascii=False, indent=2), encoding="utf-8")

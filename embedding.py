@@ -14,6 +14,7 @@ import json
 import sqlite3
 from pathlib import Path
 from typing import List, Dict
+import re
 
 import numpy as np
 from transformers import AutoTokenizer
@@ -77,11 +78,12 @@ def main():
 
     # Derive output paths
     if args.input.is_file():
-        sqlite_path = args.input.with_name(f"{args.input.stem}_embeddings.sqlite")
-        json_path = args.input.with_name(f"{args.input.stem}_chunks.json")
+        base = re.sub(r'_cleaned$', '', args.input.stem)
     else:
-        sqlite_path = args.input.with_name(f"{args.input.name}_embeddings.sqlite")
-        json_path = args.input.with_name(f"{args.input.name}_chunks.json")
+        base = re.sub(r'_cleaned$', '', args.input.name)
+
+    sqlite_path = args.input.with_name(f"{base}_embeddings.sqlite")
+    json_path = args.input.with_name(f"{base}_chunks.json")
 
     print(f"SQLite → {sqlite_path}")
     if not args.no_json:
@@ -100,7 +102,9 @@ def main():
     json_results: List[Dict[str, str]] = []
 
     for path in paths:
-        doc = path.stem
+        doc_raw = path.stem
+        doc = re.sub(r'_cleaned$', '', doc_raw)   # remove trailing "_cleaned" from doc/id
+
         raw = path.read_text(encoding="utf-8", errors="ignore")
         text = raw if args.no_preclean else clean_text(raw, keep_newlines=args.keep_newlines, lowercase=args.lowercase)
 
@@ -118,13 +122,13 @@ def main():
                 embs = embs / norms
 
             for j, chunk_text in enumerate(batch, start=i + 1):
-                # 👇 no leading zeroes
                 rows.append({
-                    "doc": doc,
-                    "id": f"{doc}_{j}",
+                    "doc": doc,                           # uses cleaned name
+                    "id": f"{doc}_{j}",                   # also cleaned
                     "chunk": chunk_text,
                     "emb": embs[j - i - 1]
                 })
+
 
         insert_rows(conn, args.table, rows)
         print(f"Inserted {len(rows)} rows from {doc}")

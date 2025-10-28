@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 extract_claims.py — extract claims from contextualized chunks (GraphRAG-style)
 
@@ -25,6 +24,8 @@ import sys
 import time
 from pathlib import Path
 import urllib.request, urllib.error
+import re
+
 
 PROMPT = """You are extracting *atomic, factual claims* from the provided text. 
 Return a JSON array where each element has keys:
@@ -86,7 +87,8 @@ def main():
         print(f"[!] Input not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
-    out_path = args.output or args.input.with_name(f"{args.input.stem}_claims.jsonl")
+    base = re.sub(r'_contextualized$', '', args.input.stem)
+    out_path = args.output or args.input.with_name(f"{base}_claims.jsonl")
 
     try:
         items = json.loads(args.input.read_text(encoding="utf-8"))
