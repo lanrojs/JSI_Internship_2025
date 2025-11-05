@@ -1,38 +1,107 @@
 """
 embedding.py — Clean -> Chunk -> Embed -> Store in SQLite AND write chunks JSON.
 
-Defaults:
+Pipeline:
+    raw .txt -> clean_text() -> token-based chunks -> BGE embeddings -> SQLite + JSON
+
+Defaults (configured via constants below):
   - Chunk size: 300 BGE tokens
   - Overlap:    50 BGE tokens
+  - Tokenizer model:         BAAI/bge-small-en-v1.5
+  - Embedding model (ST):    BAAI/bge-small-en-v1.5
+  - SQLite table name:       "chunks"
+  - Batch size for encoding: 64
+  - Embeddings are L2-normalized (good for cosine / inner product).
+
 Outputs:
   - <input_basename>_embeddings.sqlite   (table: chunks(doc, id, chunk, emb BLOB))
   - <input_basename>_chunks.json         (list of {"doc","id","chunk"})
+
+You can use this in two ways:
+
+1) Command line:
+       python embedding.py INPUT_PATH
+
+   where INPUT_PATH is:
+       - a single .txt file, or
+       - a directory containing multiple .txt files.
+
+2) From a notebook:
+       from embedding import embed_path
+       sqlite_path, json_path = embed_path("gdpr.txt")
 """
 
-import argparse
+import sys
 import json
 import sqlite3
-from pathlib import Path
-from typing import List, Dict
 import re
+from pathlib import Path
+from typing import List, Dict, Tuple, Union
 
 import numpy as np
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 
 from process_text import clean_text
-from chunking import make_chunks_by_bge_tokens
+from chunks import make_chunks
 
+# --------------------------------------------------------------------
+# Configuration constants — change here if you want different defaults
+# --------------------------------------------------------------------
+
+# HuggingFace tokenizer model used for chunking / token counts
+TOKENIZER_MODEL_ID = "BAAI/bge-small-en-v1.5"
+
+# SentenceTransformer embedding model (must be compatible with BGE)
+EMBED_MODEL_ID = "BAAI/bge-small-en-v1.5"
+
+# Chunk parameters (Anthropic-style contextual RAG tuning)
+CHUNK_SIZE_TOKENS = 300     # max tokens per chunk
+CHUNK_OVERLAP_TOKENS = 50  # desired overlap in tokens
+
+# SQLite settings
+TABLE_NAME = "chunks"       # name of the table inside the SQLite DB
+
+# Embedding settings
+BATCH_SIZE = 64             # how many chunks to encode at once
+NORMALIZE_EMBEDDINGS = True # L2-normalize embeddings (recommended for cosine/IP)
+
+
+# --------------------------------------------------------------------
+# Utility functions for file gathering and DB handling
+# --------------------------------------------------------------------
 
 def gather_input_paths(input_path: Path) -> List[Path]:
+    """
+    Given an input path, return a list of .txt files to process.
+
+    Cases:
+      • If input_path is a single .txt file → [input_path]
+      • If input_path is a directory       → all *.txt files (non-recursive)
+      • Otherwise → raise ValueError
+    """
     if input_path.is_file() and input_path.suffix.lower() == ".txt":
         return [input_path]
+
     if input_path.is_dir():
-        return sorted(p for p in input_path.iterdir() if p.is_file() and p.suffix.lower() == ".txt")
-    raise ValueError(f"Input must be a .txt file or a directory: {input_path}")
+        return sorted(
+            p for p in input_path.iterdir()
+            if p.is_file() and p.suffix.lower() == ".txt"
+        )
+
+    raise ValueError(f"Input must be a .txt file or a directory of .txt files: {input_path}")
 
 
-def ensure_table(conn: sqlite3.Connection, table: str):
+def ensure_table(conn: sqlite3.Connection, table: str) -> None:
+    """
+    Make sure the SQLite table exists.
+
+    Schema:
+        doc   TEXT    (document name, e.g. "gdpr")
+        id    TEXT PK (unique chunk id, e.g. "gdpr_1")
+        chunk TEXT    (actual text content)
+        emb   BLOB    (raw bytes of float32 embedding vector)
+    """
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {table} (
             doc   TEXT NOT NULL,
@@ -41,109 +110,229 @@ def ensure_table(conn: sqlite3.Connection, table: str):
             emb   BLOB NOT NULL
         )
     """)
+    # Index by document for faster per-doc queries
     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_doc ON {table}(doc)")
     conn.commit()
 
 
 def to_blob(vec: np.ndarray) -> bytes:
+    """
+    Convert a NumPy float vector into a contiguous float32 byte string.
+
+    This is how we store embeddings as BLOBs in SQLite.
+    """
     if vec.dtype != np.float32:
         vec = vec.astype(np.float32, copy=False)
     return vec.tobytes(order="C")
 
 
-def insert_rows(conn: sqlite3.Connection, table: str, rows: List[Dict]):
-    payload = [(r["doc"], r["id"], r["chunk"], to_blob(r["emb"])) for r in rows]
+def insert_rows(conn: sqlite3.Connection, table: str, rows: List[Dict]) -> None:
+    """
+    Insert multiple rows (doc, id, chunk, emb array) into the SQLite table.
+
+    Uses 'INSERT OR REPLACE' so re-running on the same doc/id pair will overwrite.
+    """
+    payload = [
+        (r["doc"], r["id"], r["chunk"], to_blob(r["emb"]))
+        for r in rows
+    ]
     conn.executemany(
         f"INSERT OR REPLACE INTO {table} (doc, id, chunk, emb) VALUES (?, ?, ?, ?)",
-        payload
+        payload,
     )
     conn.commit()
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Clean -> Chunk -> Embed (BGE small) -> SQLite + JSON.")
-    ap.add_argument("input", type=Path, help="Path to .txt file or directory of .txt files")
-    ap.add_argument("--table", type=str, default="chunks", help="SQLite table name")
-    ap.add_argument("--size", type=int, default=300, help="Max tokens per chunk (BGE tokenizer)")
-    ap.add_argument("--overlap", type=int, default=50, help="Token overlap between chunks (BGE tokenizer)")
-    ap.add_argument("--tokenizer", type=str, default="BAAI/bge-small-en-v1.5", help="HF tokenizer for chunking")
-    ap.add_argument("--embed-model", type=str, default="BAAI/bge-small-en-v1.5", help="SentenceTransformer model id")
-    ap.add_argument("--batch-size", type=int, default=64, help="Embedding batch size")
-    ap.add_argument("--normalize", action="store_true", help="L2-normalize embeddings (recommended for cosine/IP)")
-    ap.add_argument("--keep-newlines", action="store_true", help="Cleaner: keep original newlines")
-    ap.add_argument("--lowercase", action="store_true", help="Cleaner: lowercase after cleaning")
-    ap.add_argument("--no-preclean", action="store_true", help="Skip text cleaning before chunking")
-    ap.add_argument("--no-json", action="store_true", help="Skip writing the chunks JSON file")
-    args = ap.parse_args()
+# --------------------------------------------------------------------
+# Core high-level function (for notebooks and scripts)
+# --------------------------------------------------------------------
 
-    # Derive output paths
-    if args.input.is_file():
-        base = re.sub(r'_cleaned$', '', args.input.stem)
+def embed_path(input_path: Union[str, Path]) -> Tuple[Path, Path]:
+    """
+    High-level pipeline: Clean -> Chunk -> Embed -> Store.
+
+    Parameters
+    ----------
+    input_path:
+        Path to a single .txt file OR a directory containing .txt files.
+
+    Behavior
+    --------
+    1. Derive output base name from input:
+         - If input is a file:
+               <name>_embeddings.sqlite and <name>_chunks.json
+         - If input is a directory:
+               <dirname>_embeddings.sqlite and <dirname>_chunks.json
+
+       Any trailing '_cleaned' suffix on the base name is stripped.
+
+    2. Load the tokenizer and embedding model once and reuse them.
+
+    3. For each .txt file:
+         - Read raw text.
+         - Clean it with process_text.clean_text().
+         - Chunk it with BGE-token-based windowing (300 size, 50 overlap).
+         - Embed each chunk using SentenceTransformers.
+         - L2-normalize embeddings (if NORMALIZE_EMBEDDINGS = True).
+         - Insert (doc, id, chunk, emb) into SQLite.
+         - Also accumulate (doc, id, chunk) for JSON.
+
+    4. Write:
+         - SQLite database with table 'chunks'.
+         - JSON file containing all chunks (without embeddings).
+
+    Returns
+    -------
+    (sqlite_path, json_path) : Tuple[Path, Path]
+        Paths to the SQLite DB and JSON chunks file.
+    """
+    input_path = Path(input_path)
+
+    # -------- Derive base name and output paths --------
+    if input_path.is_file():
+        base_raw = input_path.stem
     else:
-        base = re.sub(r'_cleaned$', '', args.input.name)
+        base_raw = input_path.name
 
-    sqlite_path = args.input.with_name(f"{base}_embeddings.sqlite")
-    json_path = args.input.with_name(f"{base}_chunks.json")
+    # Strip a trailing "_cleaned" if present (so gdpr_cleaned.txt → gdpr_*)
+    base = re.sub(r"_cleaned$", "", base_raw)
 
-    print(f"SQLite → {sqlite_path}")
-    if not args.no_json:
-        print(f"JSON   → {json_path}")
+    sqlite_path = input_path.with_name(f"{base}_embeddings.sqlite")
+    json_path = input_path.with_name(f"{base}_chunks.json")
 
-    # Models
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
-    embedder = SentenceTransformer(args.embed_model)
+    print(f"SQLite DB will be written to: {sqlite_path}")
+    print(f"Chunks JSON will be written to: {json_path}")
 
-    # Inputs & DB
-    paths = gather_input_paths(args.input)
+    # -------- Initialize models --------
+    # Tokenizer for BGE token-count-based chunking
+    tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_MODEL_ID)
+
+    # SentenceTransformer for embeddings
+    embedder = SentenceTransformer(EMBED_MODEL_ID)
+
+    # -------- Collect input files and set up SQLite --------
+    paths = gather_input_paths(input_path)
     conn = sqlite3.connect(sqlite_path)
-    ensure_table(conn, args.table)
+    ensure_table(conn, TABLE_NAME)
 
-    # Collect for JSON output
+    # List of {"doc", "id", "chunk"} for the JSON output
     json_results: List[Dict[str, str]] = []
 
+    # -------- Process each document --------
     for path in paths:
+        # doc_raw = filename without extension, possibly with "_cleaned"
         doc_raw = path.stem
-        doc = re.sub(r'_cleaned$', '', doc_raw)   # remove trailing "_cleaned" from doc/id
+        # Remove trailing "_cleaned" from doc identifier
+        doc = re.sub(r"_cleaned$", "", doc_raw)
 
+        print(f"Processing document: {path}  (doc id: {doc})")
+
+        # --- Step 1: Read and clean the raw text ---
         raw = path.read_text(encoding="utf-8", errors="ignore")
-        text = raw if args.no_preclean else clean_text(raw, keep_newlines=args.keep_newlines, lowercase=args.lowercase)
+        text = clean_text(raw)  # uses your process_text.clean_text
 
-        # Chunk
-        chunks = make_chunks_by_bge_tokens(text, tokenizer, size=args.size, overlap=args.overlap)
+        # --- Step 2: Token-based chunking using BGE tokenizer ---
+        chunks = make_chunks(
+            text,
+            tokenizer,
+            size=CHUNK_SIZE_TOKENS,
+            overlap=CHUNK_OVERLAP_TOKENS,
+        )
+
         if not chunks:
+            print(f"  ⚠️  No chunks produced for {doc}. Skipping.")
             continue
 
+        # --- Step 3: Embed chunks in batches and prepare rows for DB ---
         rows = []
-        for i in range(0, len(chunks), args.batch_size):
-            batch = chunks[i : i + args.batch_size]
-            embs = embedder.encode(batch, convert_to_numpy=True, normalize_embeddings=False)
-            if args.normalize:
+        total_chunks = len(chunks)
+        print(f"  Chunks: {total_chunks}")
+
+        for start_idx in range(0, total_chunks, BATCH_SIZE):
+            batch = chunks[start_idx : start_idx + BATCH_SIZE]
+
+            # Compute embeddings for this batch
+            embs = embedder.encode(
+                batch,
+                convert_to_numpy=True,
+                normalize_embeddings=False,  # we'll normalize manually (if enabled)
+            )
+
+            if NORMALIZE_EMBEDDINGS:
+                # L2-normalize each embedding vector: v / ||v||
                 norms = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
                 embs = embs / norms
 
-            for j, chunk_text in enumerate(batch, start=i + 1):
-                rows.append({
-                    "doc": doc,                           # uses cleaned name
-                    "id": f"{doc}_{j}",                   # also cleaned
-                    "chunk": chunk_text,
-                    "emb": embs[j - i - 1]
-                })
+            # For each chunk in the batch, build a row
+            for offset, chunk_text in enumerate(batch):
+                # Global chunk index (1-based) within this document
+                global_index = start_idx + offset + 1
+                rows.append(
+                    {
+                        "doc": doc,
+                        "id": f"{doc}_{global_index}",
+                        "chunk": chunk_text,
+                        "emb": embs[offset],
+                    }
+                )
 
+        # --- Step 4: Insert into SQLite ---
+        insert_rows(conn, TABLE_NAME, rows)
+        print(f"  Inserted {len(rows)} rows into SQLite for doc {doc}")
 
-        insert_rows(conn, args.table, rows)
-        print(f"Inserted {len(rows)} rows from {doc}")
+        # --- Step 5: Accumulate JSON entries (without embeddings) ---
+        for r in rows:
+            json_results.append(
+                {
+                    "doc": r["doc"],
+                    "id": r["id"],
+                    "chunk": r["chunk"],
+                }
+            )
 
-        if not args.no_json:
-            for r in rows:
-                json_results.append({"doc": r["doc"], "id": r["id"], "chunk": r["chunk"]})
-
+    # -------- Finalize: close DB and write JSON --------
     conn.close()
 
-    if not args.no_json:
-        json_path.write_text(json.dumps(json_results, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"Wrote chunks JSON → {json_path}")
-
+    # Write pretty-printed JSON with UTF-8 encoding
+    json_path.write_text(
+        json.dumps(json_results, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"Wrote {len(json_results)} chunks to JSON → {json_path}")
     print("✅ Done.")
+
+    return sqlite_path, json_path
+
+
+# --------------------------------------------------------------------
+# Simple CLI wrapper (no optional arguments, just INPUT_PATH)
+# --------------------------------------------------------------------
+
+def main() -> None:
+    """
+    Command-line entry point.
+
+    Usage:
+        python embedding.py INPUT_PATH
+
+    where INPUT_PATH is either:
+      • a .txt file, or
+      • a directory containing .txt files.
+
+    All configuration (chunk size, overlap, model IDs, etc.)
+    is defined via constants at the top of this file.
+    """
+    if len(sys.argv) != 2:
+        prog = Path(sys.argv[0]).name
+        print(f"Usage: {prog} INPUT_PATH", file=sys.stderr)
+        sys.exit(1)
+
+    input_path = Path(sys.argv[1])
+    if not input_path.exists():
+        print(f"Error: input path not found: {input_path}", file=sys.stderr)
+        sys.exit(1)
+
+    embed_path(input_path)
 
 
 if __name__ == "__main__":

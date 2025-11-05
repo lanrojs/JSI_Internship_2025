@@ -1,65 +1,92 @@
-"""
-process_text.py — Simple text preprocessor for .txt files.
-
-- Removes newlines by default (turns them into spaces)
-- Collapses multiple whitespace (spaces/tabs/newlines) into a single space
-- Removes spaces before punctuation like , . ; : ! ?
-- Trims leading/trailing whitespace
-- Optional: keep newlines, lowercase, Unicode normalization
-
-Usage:
-  python clean_text.py input.txt [-o output.txt] [--keep-newlines] [--lowercase]
-"""
-
-import argparse
+import sys
 import re
-import unicodedata
 from pathlib import Path
 
-PUNCT = r"\.,;:!\?\)\]\}"
+def clean_text(text: str) -> str:
+    """
+    Clean and normalize a raw text string for chunking.
 
-def clean_text(text: str, *, keep_newlines: bool = False, lowercase: bool = False) -> str:
-    # Unicode normalization (handles odd spacing chars, compatibility forms, etc.)
-    text = unicodedata.normalize("NFKC", text)
+    This function:
+      • Normalizes punctuation and whitespace.
+      • Merges line breaks that split sentences.
+      • Keeps logical paragraph breaks (double newlines).
+      • Collapses redundant spaces.
+      • Removes accidental spaces before punctuation.
+    """
 
-    if not keep_newlines:
-        # Replace any newline sequence with a single space
-        text = text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", " ")
+    # --- Normalize punctuation and whitespace characters ---
+    # Replace curly quotes, em/en dashes, and non-breaking spaces
+    text = (text.replace('‘', "'")
+                .replace('’', "'")
+                .replace('“', '"')
+                .replace('”', '"')
+                .replace('\u2013', '-')   # en dash
+                .replace('\u2014', '-')   # em dash
+                .replace('\xa0', ' ')     # non-breaking space
+                .replace('\r\n', '\n')    # normalize Windows newlines
+                .replace('\r', '\n'))     # normalize old Mac newlines
 
-    # Collapse all runs of whitespace (space, tab, newline) to a single space
-    text = re.sub(r"\s+", " ", text)
+    # --- Collapse 3+ consecutive blank lines into just 2 ---
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
 
-    # Remove spaces immediately before common punctuation
-    text = re.sub(rf"\s+([{PUNCT}])", r"\1", text)
+    # --- Handle list markers like "(1)" or "(a)" followed by blank lines ---
+    # e.g., "(1)\n\nSome text" → "(1) Some text"
+    text = re.sub(r'\((\d+|[a-z])\)\s*\n+\s*', r'(\1) ', text)
 
-    # Remove spaces after opening brackets/quotes
-    text = re.sub(r"([(\[\{“‘])\s+", r"\1", text)
+    # --- Keep consecutive subpoints on separate lines but remove blank gaps ---
+    # e.g., "(a)\n\n(b)" → "(a)\n(b)"
+    text = re.sub(r'\)\s*\n+\s*\(', ')\n(', text)
 
-    # Trim
-    text = text.strip()
+    # --- Merge subpoints split by a single newline ---
+    # e.g., "(a)\ntext" → "(a) text"
+    text = re.sub(r'\(([a-z])\)\s*\n\s*', r'(\1) ', text)
 
-    if lowercase:
-        text = text.lower()
+    # --- Join lines within a sentence ---
+    # If a line break occurs mid-sentence (no period before it),
+    # replace it with a space instead of keeping a newline.
+    text = re.sub(r'(?<![.!?;:])\n(?=\S)', ' ', text)
 
-    return text
+    # --- Remove leading spaces before list markers like "(a)" or "(1)" ---
+    text = re.sub(r'^[ \t]+(\([a-z0-9]+\))', r'\1', text, flags=re.MULTILINE)
+
+    # --- Collapse multiple spaces into one ---
+    text = re.sub(r' {2,}', ' ', text)
+
+    # --- Trim spaces around newlines ---
+    text = re.sub(r'[ \t]*\n[ \t]*', '\n', text)
+
+    # --- Remove accidental spaces before punctuation marks ---
+    text = re.sub(r'\s+([,.;:])', r'\1', text)
+
+    # --- Strip leading/trailing whitespace and return result ---
+    return text.strip()
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Clean a .txt file: remove newlines and unwanted spaces.")
-    ap.add_argument("input", type=Path, help="Path to input .txt file")
-    ap.add_argument("-o", "--output", type=Path, help="Path to output .txt file (default: <input>_cleaned.txt)")
-    ap.add_argument("--keep-newlines", action="store_true", help="Keep original newlines (still trims/fixes spaces)")
-    ap.add_argument("--lowercase", action="store_true", help="Lowercase the text after cleaning")
-    args = ap.parse_args()
+def main() -> None:
+    """
+    Command-line entry point.
+    Usage:
+        python clean_text.py INPUT_FILE
+    Writes a cleaned version of INPUT_FILE to <name>_cleaned.<ext>.
+    """
+    if len(sys.argv) != 2:
+        print(f"Usage: {Path(sys.argv[0]).name} INPUT_FILE", file=sys.stderr)
+        sys.exit(1)
 
-    inp: Path = args.input
-    out: Path = args.output or inp.with_name(f"{inp.stem}_cleaned{inp.suffix}")
+    input_path = Path(sys.argv[1])
+    if not input_path.is_file():
+        print(f"Error: input file not found: {input_path}", file=sys.stderr)
+        sys.exit(1)
 
-    text = inp.read_text(encoding="utf-8", errors="ignore")
-    cleaned = clean_text(text, keep_newlines=args.keep_newlines, lowercase=args.lowercase)
-    out.write_text(cleaned, encoding="utf-8")
+    output_path = input_path.with_name(f"{input_path.stem}_cleaned{input_path.suffix}")
 
-    print(f"Cleaned text written to: {out}")
+    # Read, clean, and write
+    raw = input_path.read_text(encoding="utf-8")
+    cleaned = clean_text(raw)
+    output_path.write_text(cleaned, encoding="utf-8")
+
+    print(f"Wrote cleaned file to: {output_path}")
+
 
 if __name__ == "__main__":
     main()

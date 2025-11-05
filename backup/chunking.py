@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import List, Tuple, Dict
 
 from transformers import AutoTokenizer
-from process_text import clean_text  # import from your process.py
+from old.process_text import clean_text  # import from your process.py
 
 # ---------- chunking helpers ----------
 ALNUM = re.compile(r"[A-Za-z0-9]", re.UNICODE)
@@ -85,8 +85,8 @@ def has_boundary_rules(text: str) -> bool:
 def make_chunks_by_bge_tokens(
     text: str,
     tokenizer,
-    size: int = 300,
-    overlap: int = 50,
+    size: int = 500,
+    overlap: int = 100,
 ) -> List[str]:
     words = split_to_words(text)
     n = len(words)
@@ -201,8 +201,8 @@ def main():
     ap = argparse.ArgumentParser(description="Clean (via process.py) + chunk .txt files using BGE-small tokenization.")
     ap.add_argument("input", type=Path, help="Path to a .txt file or a directory of .txt files")
     ap.add_argument("-o", "--output", type=Path, help="Output JSON file (default: <input>_chunks.json)")
-    ap.add_argument("--size", type=int, default=300, help="Max tokens per chunk (model tokens)")
-    ap.add_argument("--overlap", type=int, default=50, help="Overlap in model tokens between consecutive chunks")
+    ap.add_argument("--size", type=int, default=500, help="Max tokens per chunk (model tokens)")
+    ap.add_argument("--overlap", type=int, default=100, help="Overlap in model tokens between consecutive chunks")
     ap.add_argument("--model", type=str, default="BAAI/bge-small-en-v1.5", help="HF model id for tokenizer")
 
     # Cleaning controls (delegated to process.clean_text)

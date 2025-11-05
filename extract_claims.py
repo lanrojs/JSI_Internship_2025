@@ -1,161 +1,404 @@
 """
-extract_claims.py — extract claims from contextualized chunks (GraphRAG-style)
+extract_claims.py — extract claims from chunks + contextualized chunks (GraphRAG-style)
 
-Reads an input JSON file that contains objects like:
-{
-  "doc": "...",
-  "id": "...",
-  "chunk": "...",
-  "contextualized_chunk": "...",
-  "merged_chunk": "..."
-}
+Expected input JSON structure (list of objects):
+[
+  {
+    "doc": "...",
+    "id": "...",
+    "chunk": "...",                 # original text from the source
+    "contextualized_chunk": "...",  # a short contextual / paraphrased summary
+    "merged_chunk": "..."           # (optional, ignored here)
+  },
+  ...
+]
 
-Calls a local Ollama model (default: llama3:8b) to extract claims from
-`contextualized_chunk` and writes one JSON line per claim to --output.
+Behavior:
+  • For each item, send BOTH `chunk` and `contextualized_chunk` to a local Ollama model.
+  • The model is instructed to base claims primarily on the original chunk, using the
+    contextualized text only as an aid for interpretation.
+  • Ask the model to return a JSON array of claims, each with:
+        - claim_text
+        - source_quote
+  • Write ONE JSON line per claim to an output .jsonl file.
 
-Progress:
-- Prints total chunks
-- Prints "[X/Y] claims (written=..., empty_chunks=...)" per-chunk
+Output:
+  - <input_basename>_claims.jsonl
+
+Usage from command line:
+    python extract_claims.py INPUT_JSON
+
+Usage from notebook:
+    from extract_claims import extract_claims_from_file
+    out_path = extract_claims_from_file("gdpr_contextualized.json")
 """
 
-import argparse
 import json
 import sys
 import time
-from pathlib import Path
-import urllib.request, urllib.error
 import re
+from pathlib import Path
+from typing import List, Dict, Any, Union
+
+import urllib.request
+import urllib.error
 
 
-PROMPT = """You are extracting *atomic, factual claims* from the provided text. 
-Return a JSON array where each element has keys:
-- claim_text: a single, self-contained factual statement (no cross-refs like "this", "above", etc.)
-- source_quote: the most specific quote supporting the claim (substring)
+# --------------------------------------------------------------------
+# Configuration constants — edit these if you want different defaults
+# --------------------------------------------------------------------
 
-Rules:
-- Do NOT invent facts; use only what's in the text.
+# Base URL of your Ollama server
+OLLAMA_SERVER = "http://localhost:11434"
+
+# Name/tag of the Ollama model to use
+OLLAMA_MODEL = "llama3:8b"
+
+# HTTP timeout for each request (seconds)
+REQUEST_TIMEOUT = 120
+
+# Generation temperature (0.0 = deterministic)
+TEMPERATURE = 0.0
+
+# Print progress every N chunks
+PROGRESS_EVERY = 1
+
+
+# --------------------------------------------------------------------
+# Prompt template sent to the LLM
+# --------------------------------------------------------------------
+
+PROMPT = """You are extracting *atomic, factual claims* from a legal passage.
+
+You are given TWO related texts:
+1) ORIGINAL_CHUNK: the original source passage (authoritative text)
+2) CONTEXTUALIZED_CHUNK: a brief contextual/interpretive summary (helper only)
+
+YOUR TASK
+- Identify explicit, normative statements in the ORIGINAL_CHUNK and rewrite them
+  as *atomic, self-contained factual claims*.
+
+OUTPUT FORMAT
+- Return a JSON array. Each element MUST be an object with keys:
+    - "claim_text": a single, self-contained factual statement
+      (no vague references like "this", "above", "such provision", etc.)
+    - "source_quote": the most specific quote from the ORIGINAL_CHUNK
+      that supports the claim (a substring of ORIGINAL_CHUNK)
+
+STRICT RULES
+- Claims MUST be grounded in the ORIGINAL_CHUNK.
+  • Use CONTEXTUALIZED_CHUNK only to clarify wording, not to invent or
+    generalize new facts.
+- Do NOT:
+  • invert meanings (e.g. do not turn an inclusion or example into a
+    general exclusion or vice versa),
+  • broaden or narrow the scope beyond what is literally stated,
+  • add conditions, exceptions, or subjects that are not explicitly present.
+- If you are not certain that a statement is *fully* supported by the
+  ORIGINAL_CHUNK, SKIP IT (do not output a claim).
+
+CONTENT FOCUS
+- Prefer claims that express:
+  • conditions of applicability (when the Regulation applies / does not apply),
+  • scope (who/what is covered),
+  • rights, duties, obligations, prohibitions, permissions, limitations,
+  • effects or consequences.
+- Skip:
+  • purely definitional boilerplate that does not express normative content,
+  • high-level recitals or motivation that add no concrete condition or rule.
+
+STYLE
 - Prefer one idea per claim_text.
-- Paraphrase minimally; keep terms from the source where possible.
-- Skip non-factual or purely definitional boilerplate unless it asserts a condition, scope, right, duty, prohibition, or permission.
+- Paraphrase minimally; preserve legal terms from the ORIGINAL_CHUNK
+  wherever possible.
+- "source_quote" MUST be a literal substring of ORIGINAL_CHUNK
+  (do not paraphrase in source_quote).
 
 Text:
-\"\"\"{text}\"\"\"\n
+ORIGINAL_CHUNK:
+\"\"\"{original_chunk}\"\"\"
+
+CONTEXTUALIZED_CHUNK:
+\"\"\"{contextualized_chunk}\"\"\"\n
+
 Output ONLY the JSON array (no prose)."""
 
-def call_ollama(server: str, model: str, prompt: str, timeout: int = 120, temperature: float = 0.0):
+# --------------------------------------------------------------------
+# Low-level HTTP / model-calling helpers
+# --------------------------------------------------------------------
+
+def call_ollama(
+    server: str,
+    model: str,
+    prompt: str,
+    timeout: int = REQUEST_TIMEOUT,
+    temperature: float = TEMPERATURE,
+) -> str:
+    """
+    Call a local Ollama server using the /api/chat endpoint and
+    return the *raw text content* from the model reply.
+
+    Parameters
+    ----------
+    server : str
+        Base URL for the Ollama server, e.g. "http://localhost:11434".
+    model : str
+        Model tag, e.g. "llama3:8b".
+    prompt : str
+        Text prompt to send as the user message.
+    timeout : int
+        HTTP timeout in seconds.
+    temperature : float
+        Sampling temperature for generation.
+
+    Returns
+    -------
+    str
+        The model's reply text (message.content), stripped of whitespace.
+    """
     url = server.rstrip("/") + "/api/chat"
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
-        "options": {"temperature": float(temperature)}
+        "options": {"temperature": float(temperature)},
     }
+
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
+
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         obj = json.loads(resp.read().decode("utf-8"))
+
+    # Ollama returns a structure where the main content is in message.content
     content = (obj.get("message") or {}).get("content", "") or ""
     return content.strip()
 
-def safe_json_array(s: str):
-    """Best-effort parse of a JSON array from a model reply."""
+
+def safe_json_array(s: str) -> List[Dict[str, Any]]:
+    """
+    Best-effort parsing of a JSON array from the model's reply.
+
+    The model is *supposed* to return a plain JSON array, but in practice
+    it might add extra text. This function:
+
+      1. Finds the first '[' and last ']' in the string.
+      2. Extracts that substring.
+      3. Tries to json.loads it.
+      4. Returns a list if successful, otherwise [].
+
+    Returns
+    -------
+    list
+        A list of parsed objects (possibly empty if parsing failed).
+    """
     s = s.strip()
     start = s.find("[")
     end = s.rfind("]")
+
     if start != -1 and end != -1 and end > start:
-        s = s[start:end+1]
+        s = s[start : end + 1]
+
     try:
         arr = json.loads(s)
         if isinstance(arr, list):
             return arr
     except Exception:
         pass
+
     return []
 
-def main():
-    ap = argparse.ArgumentParser(description="Extract claims from contextualized chunks.")
-    ap.add_argument("--input", required=True, type=Path, help="Path to *_contextualized.json")
-    ap.add_argument("--output", type=Path, default=None, help="Output JSONL (default: <input>_claims.jsonl)")
-    ap.add_argument("--server", default="http://localhost:11434", help="Ollama base URL")
-    ap.add_argument("--model", default="llama3:8b", help="Ollama model tag")
-    ap.add_argument("--timeout", type=int, default=120, help="HTTP timeout seconds")
-    ap.add_argument("--temperature", type=float, default=0.0, help="Generation temperature")
-    ap.add_argument("--progress-every", type=int, default=1, help="Print progress every N chunks")
-    args = ap.parse_args()
 
-    if not args.input.exists():
-        print(f"[!] Input not found: {args.input}", file=sys.stderr)
-        sys.exit(1)
+# --------------------------------------------------------------------
+# Core high-level pipeline (for notebook & script use)
+# --------------------------------------------------------------------
 
-    base = re.sub(r'_contextualized$', '', args.input.stem)
-    out_path = args.output or args.input.with_name(f"{base}_claims.jsonl")
+def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
+    """
+    High-level function to extract claims from a JSON file with chunks
+    and contextualized chunks.
 
+    Parameters
+    ----------
+    input_path : str or Path
+        Path to a JSON file that contains a list of objects, each with:
+          - "doc": document identifier
+          - "id": chunk ID (or "chunk_id")
+          - "chunk": original text passage
+          - "contextualized_chunk": contextual / paraphrased text (optional, but recommended)
+
+    Behavior
+    --------
+    - Reads the JSON list.
+    - For each item, sends BOTH the original chunk and the contextualized chunk
+      to the Ollama model, using PROMPT.
+    - Parses the model's reply as a JSON array of claim objects:
+          { "claim_text": "...", "source_quote": "..." }
+    - Writes one JSON object per claim to an output .jsonl file, with fields:
+          "doc", "chunk_id", "claim_id", "claim_text", "source_quote"
+
+      where:
+          chunk_id = original chunk id (string)
+          claim_id = "<chunk_id>#<n>", n = per-chunk index starting at 1
+
+    - Prints progress every PROGRESS_EVERY chunks.
+
+    Output file name
+    ----------------
+    If the input file is named:
+        example_contextualized.json
+    The output will be:
+        example_claims.jsonl
+
+    Returns
+    -------
+    Path
+        Path to the output .jsonl file.
+    """
+    input_path = Path(input_path)
+
+    # --- Basic existence check ---
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input not found: {input_path}")
+
+    # --- Derive output path: strip trailing '_contextualized' from the stem ---
+    base = re.sub(r"_contextualized$", "", input_path.stem)
+    out_path = input_path.with_name(f"{base}_claims.jsonl")
+
+    # --- Load input JSON (must be a list) ---
     try:
-        items = json.loads(args.input.read_text(encoding="utf-8"))
+        items = json.loads(input_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
-        print(f"[!] Failed to parse JSON: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Failed to parse JSON: {e}") from e
+
     if not isinstance(items, list):
-        print("[!] Input JSON must be a list of objects.", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("Input JSON must be a list of objects.")
 
     total = len(items)
     print(f"Total chunks: {total}", flush=True)
 
-    written = 0
-    empty_chunks = 0
-    t0 = time.time()
+    written = 0       # how many claims we've written so far
+    empty_chunks = 0  # how many chunks had no usable text
+    t0 = time.time()  # start time
 
+    # --- Open output JSONL for writing ---
     with out_path.open("w", encoding="utf-8") as out:
         for i, obj in enumerate(items, start=1):
+            # Document ID (e.g. "gdpr2")
             doc = str(obj.get("doc", ""))
+
+            # Chunk identifier (prefer "id", fallback to "chunk_id")
             cid = str(obj.get("id") or obj.get("chunk_id") or "")
-            text = (obj.get("contextualized_chunk") or "").strip()
-            if not text:
+
+            # Original chunk and contextualized chunk from the input
+            original_chunk = (obj.get("chunk") or "").strip()
+            contextualized_chunk = (obj.get("contextualized_chunk") or "").strip()
+
+            # If we have absolutely no text, count as empty and continue
+            if not original_chunk and not contextualized_chunk:
                 empty_chunks += 1
-                if i % args.progress_every == 0 or i == total:
-                    print(f"[{i}/{total}] claims (written={written}, empty_chunks={empty_chunks})", flush=True)
+                if i % PROGRESS_EVERY == 0 or i == total:
+                    print(
+                        f"[{i}/{total}] claims (written={written})",
+                        flush=True,
+                    )
                 continue
 
-            prompt = PROMPT.format(text=text)
+            # Fill the prompt template with BOTH texts.
+            # The prompt tells the model to ground claims in ORIGINAL_CHUNK.
+            prompt = PROMPT.format(
+                original_chunk=original_chunk,
+                contextualized_chunk=contextualized_chunk,
+            )
+
+            # --- Call Ollama model ---
             try:
                 reply = call_ollama(
-                    server=args.server,
-                    model=args.model,
+                    server=OLLAMA_SERVER,
+                    model=OLLAMA_MODEL,
                     prompt=prompt,
-                    timeout=args.timeout,
-                    temperature=args.temperature,
+                    timeout=REQUEST_TIMEOUT,
+                    temperature=TEMPERATURE,
                 )
             except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
+                # Log a warning and skip this chunk
                 print(f"[warn] {doc}/{cid} request failed: {e}", flush=True)
-                if i % args.progress_every == 0 or i == total:
-                    print(f"[{i}/{total}] claims (written={written}, empty_chunks={empty_chunks})", flush=True)
+                if i % PROGRESS_EVERY == 0 or i == total:
+                    print(
+                        f"[{i}/{total}] claims (written={written})",
+                        flush=True,
+                    )
                 continue
 
+            # --- Parse the model reply into a JSON array ---
             arr = safe_json_array(reply)
 
-            # Filter and write (no confidence)
-            idx = 0
+            # --- Write out each valid claim as a JSONL record ---
+            idx = 0  # per-chunk claim counter
             for claim in arr:
                 idx += 1
                 ctext = (claim.get("claim_text") or "").strip()
                 if not ctext:
+                    # Skip empty or malformed entries
                     continue
+
                 rec = {
                     "doc": doc,
                     "chunk_id": cid,
-                    "claim_id": f"{cid}#{idx}",
+                    "claim_id": f"{cid}#{idx}",  # unique within this chunk
                     "claim_text": ctext,
                     "source_quote": (claim.get("source_quote") or "").strip(),
                 }
+
                 out.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 written += 1
 
-            if i % args.progress_every == 0 or i == total:
-                print(f"[{i}/{total}] claims (written={written}, empty_chunks={empty_chunks})", flush=True)
+            # Periodic progress logging
+            if i % PROGRESS_EVERY == 0 or i == total:
+                print(
+                    f"[{i}/{total}] claims (written={written})",
+                    flush=True,
+                )
 
     dt = time.time() - t0
     print(f"✓ Done. Wrote {written} claims to: {out_path} in {dt:.1f}s", flush=True)
+    return out_path
+
+
+# --------------------------------------------------------------------
+# Simple CLI wrapper with a single positional argument
+# --------------------------------------------------------------------
+
+def main() -> None:
+    """
+    Command-line entry point.
+
+    Usage:
+        python extract_claims.py INPUT_JSON
+
+    Where:
+      • INPUT_JSON is a JSON file with entries containing "chunk"
+        and optionally "contextualized_chunk".
+
+    All configuration (server, model, temperature, progress frequency)
+    is defined via the constants at the top of this file.
+    """
+    if len(sys.argv) != 2:
+        prog = Path(sys.argv[0]).name
+        print(f"Usage: {prog} INPUT_JSON", file=sys.stderr)
+        sys.exit(1)
+
+    input_path = Path(sys.argv[1])
+    try:
+        extract_claims_from_file(input_path)
+    except Exception as e:
+        print(f"[!] Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
