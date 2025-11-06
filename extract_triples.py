@@ -29,7 +29,7 @@ import sys
 import time
 import re
 from pathlib import Path
-from typing import List, Dict, Any, Union
+from typing import List, Any, Union
 
 import urllib.request
 import urllib.error

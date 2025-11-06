@@ -45,13 +45,13 @@ import urllib.error
 OLLAMA_SERVER = "http://localhost:11434"
 
 # Name/tag of the LLM model to use
-OLLAMA_MODEL = "gemma3:4b-it-qat" # gemma3:4b-it-qat
+OLLAMA_MODEL = "llama3:8b" # gemma3:4b-it-qat
 
 # HTTP timeout for each request (seconds)
 REQUEST_TIMEOUT = 120
 
 # Generation temperature
-TEMPERATURE = 0.5
+TEMPERATURE = 0.0
 
 # Print progress every N chunks
 PROGRESS_EVERY = 1
