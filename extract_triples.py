@@ -22,13 +22,6 @@ Output:
       "predicate": "...",
       "object": "..."
     }
-
-Usage from command line:
-    python extract_triplets.py INPUT_CLAIMS_JSONL
-
-Usage from notebook:
-    from extract_triplets import extract_triplets_from_claims
-    out_path = extract_triplets_from_claims("gdpr_sample_claims.jsonl")
 """
 
 import json
@@ -41,21 +34,20 @@ from typing import List, Dict, Any, Union
 import urllib.request
 import urllib.error
 
-
 # --------------------------------------------------------------------
-# Configuration constants — tweak here instead of using CLI flags
+# Config
 # --------------------------------------------------------------------
 
 # Base URL for your local Ollama server
 OLLAMA_SERVER = "http://localhost:11434"
 
 # Default Ollama model tag to use for triple extraction
-OLLAMA_MODEL = "llama3:8b"     # e.g. "llama3:8b" or "llama3.2"
+OLLAMA_MODEL = "llama3:8b" # gemma3:4b-it-qat
 
 # HTTP timeout for each request (seconds)
 REQUEST_TIMEOUT = 120
 
-# LLM sampling temperature (0.0 = deterministic, good for extraction tasks)
+# LLM sampling temperature
 TEMPERATURE = 0.0
 
 # Maximum number of retries on transient HTTP/network errors
@@ -117,27 +109,7 @@ def call_ollama(
     timeout: int = REQUEST_TIMEOUT,
     temperature: float = TEMPERATURE,
 ) -> str:
-    """
-    Call a local Ollama model via the /api/chat endpoint.
-
-    Parameters
-    ----------
-    server : str
-        Base URL of the Ollama server (e.g. "http://localhost:11434").
-    model : str
-        Model tag, e.g. "llama3.2" or "llama3:8b".
-    prompt : str
-        The text prompt to send as a single user message.
-    timeout : int
-        HTTP timeout in seconds.
-    temperature : float
-        Sampling temperature.
-
-    Returns
-    -------
-    str
-        The content of the model's reply (message.content), stripped.
-    """
+    
     url = server.rstrip("/") + "/api/chat"
     payload = {
         "model": model,
@@ -161,26 +133,6 @@ def call_ollama(
 
 
 def safe_json_array(s: str) -> List[Any]:
-    """
-    Best-effort parsing of a JSON array from the model reply string.
-
-    The model *should* return a plain JSON array, but in practice it may
-    add explanatory text before/after. This helper:
-
-      1. Finds the substring between the first '[' and last ']'.
-      2. Attempts to json.loads() that substring.
-      3. Returns the array if successful, otherwise [].
-
-    Parameters
-    ----------
-    s : str
-        Raw string returned by the model.
-
-    Returns
-    -------
-    list
-        Parsed JSON array (possibly empty).
-    """
     s = s.strip()
     start = s.find("[")
     end = s.rfind("]")
@@ -199,58 +151,11 @@ def safe_json_array(s: str) -> List[Any]:
 
 
 def sanitize_field(val: Any) -> str:
-    """
-    Sanitize a text field by:
-
-      • Converting None to empty string.
-      • Replacing newlines and carriage returns with spaces.
-      • Trimming leading/trailing whitespace.
-
-    This keeps JSONL lines single-line and compact.
-    """
     return (str(val or "")).replace("\r", " ").replace("\n", " ").strip()
 
 
-# --------------------------------------------------------------------
-# Core high-level function (for notebooks and scripts)
-# --------------------------------------------------------------------
-
+# calling from a notebook
 def extract_triplets_from_claims(input_path: Union[str, Path]) -> Path:
-    """
-    High-level pipeline to extract SPO triples from claims.
-
-    Parameters
-    ----------
-    input_path : str or Path
-        Path to a JSONL file produced by extract_claims.py.
-        Each line should be a JSON object with at least:
-            "doc", "chunk_id", "claim_id", "claim_text"
-
-    Behavior
-    --------
-    For each claim:
-      1. Build a prompt using PROMPT and the claim_text.
-      2. Call the Ollama model and parse its JSON array reply.
-      3. For each triple in the array with non-empty
-         subject, predicate, and object:
-            • Write one JSONL line with fields:
-                doc, chunk_id, claim_id, triple_id,
-                subject, predicate, object
-            • triple_id = "<claim_id>@<n>"
-
-    Output
-    ------
-    A new JSONL file named:
-        <input_basename>_triples.jsonl
-    where <input_basename> is the stem of the input file, with
-    any trailing "_claims" removed (e.g. "gdpr_claims.jsonl"
-    → "gdpr_triples.jsonl").
-
-    Returns
-    -------
-    Path
-        Path to the output JSONL file.
-    """
     input_path = Path(input_path)
 
     if not input_path.exists():
@@ -394,17 +299,6 @@ def extract_triplets_from_claims(input_path: Union[str, Path]) -> Path:
 # --------------------------------------------------------------------
 
 def main() -> None:
-    """
-    Command-line entry point.
-
-    Usage:
-        python extract_triplets.py INPUT_CLAIMS_JSONL
-
-    Where INPUT_CLAIMS_JSONL is a JSONL file produced by extract_claims.py.
-
-    All configuration (server URL, model name, timeouts, etc.) is defined
-    by the constants at the top of this file.
-    """
     if len(sys.argv) != 2:
         prog = Path(sys.argv[0]).name
         print(f"Usage: {prog} INPUT_CLAIMS_JSONL", file=sys.stderr)

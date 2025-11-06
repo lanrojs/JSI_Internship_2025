@@ -31,10 +31,9 @@ import time
 import re
 from pathlib import Path
 from typing import List, Dict, Any, Union
-
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import urllib.request, urllib.error
+import urllib.request
 
 
 # Try to reuse embedding model id from embedding.py if available.
@@ -51,11 +50,11 @@ except ImportError:
 
 # Ollama server + model for contextualization
 OLLAMA_SERVER = "http://localhost:11434"
-OLLAMA_MODEL = "llama3:8b"
+OLLAMA_MODEL = "gemma3:4b-it-qat" # gemma3:4b-it-qat
 
 # LLM call behavior
 REQUEST_TIMEOUT = 120      # seconds per request
-TEMPERATURE = 0.0          # 0.0 = deterministic / stable behavior
+TEMPERATURE = 0.5          # 0.0 = deterministic / stable behavior
 MAX_RETRIES = 3            # how many times to retry on network error
 RETRY_WAIT = 2.0           # base backoff in seconds
 

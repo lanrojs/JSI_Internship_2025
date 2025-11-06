@@ -1,15 +1,6 @@
 """
-chunks.py — Clean (via process_text.clean_text) + chunk .txt files using BGE-small token counts.
-
-Boundary rules for each chunk:
-  - Start: '(' or a LETTER (A–Z/a–z).  ❌ Not a digit.
-  - End:   alphanumeric OR ')'
-  - Trims punctuation on first/last token but preserves '(' and ')'.
-  - Skips redundant chunks (no new words beyond previous chunk).
-
-Output:
-  Default name: <input>_chunks.json  (if input is a single file)
-  or            <directory>_chunks.json  (if input is a directory of .txt files)
+chunks.py — Process and chunk .txt files using BGE-small token counts.
+Output: <input>_chunks.json
 
 This module is designed so that you can:
   • Run it from the command line:  python chunking.py INPUT_PATH
@@ -21,15 +12,14 @@ import json
 import re
 from pathlib import Path
 from typing import List, Tuple, Dict, Union
-
 from transformers import AutoTokenizer
 from process_text import clean_text
 
 # --------------------------------------------------------------------
-# Configuration constants (tune here if needed)
+# Config
 # --------------------------------------------------------------------
 
-# HuggingFace model ID whose tokenizer approximates BGE-small token counts
+# HuggingFace model ID
 MODEL_ID = "BAAI/bge-small-en-v1.5"
 
 # Maximum number of model tokens per chunk
@@ -39,7 +29,7 @@ MAX_TOKENS_PER_CHUNK = 300
 TOKEN_OVERLAP = 50
 
 # --------------------------------------------------------------------
-# Regex helpers for detecting "wordy" tokens and trimming punctuation
+# Regex helpers
 # --------------------------------------------------------------------
 
 # Has at least one alphanumeric character (letter or digit)
@@ -62,21 +52,10 @@ def is_wordy(tok: str) -> bool:
 
 
 def split_to_words(text: str) -> List[str]:
-    """
-    Split text into a list of whitespace-separated 'words'.
-
-    We treat any whitespace as a separator; punctuation stays attached
-    to the surrounding text and is handled later by trimming functions.
-    """
     return text.split()
 
 
 def token_len(tokenizer, text_piece: str) -> int:
-    """
-    Compute the number of model tokens for a given word or short text piece.
-
-    We disable special tokens so that we measure only the content tokens.
-    """
     return len(tokenizer.encode(text_piece, add_special_tokens=False))
 
 
@@ -162,10 +141,8 @@ def make_chunks(
     overlap: int = TOKEN_OVERLAP,
 ) -> List[str]:
     """
-    Core chunking routine.
-
     Given:
-      • text: already cleaned text (no weird line breaks, normalized spaces, etc.)
+      • text: already cleaned text
       • tokenizer: a HuggingFace tokenizer (e.g. BGE-small)
       • size: maximum model tokens per chunk
       • overlap: how many model tokens should overlap between consecutive chunks
@@ -310,30 +287,7 @@ def gather_input_paths(input_path: Path) -> List[Path]:
     raise ValueError(f"Input must be a .txt file or a directory: {input_path}")
 
 
-def chunk_path(input_path: Union[str, Path]) -> Path:
-    """
-    High-level function you can call from a notebook or another script.
-
-    Parameters
-    ----------
-    input_path:
-        Path to a .txt file OR to a directory containing multiple .txt files.
-
-    Behavior
-    --------
-    - Loads the tokenizer for BGE-small.
-    - Gathers all .txt files (single file or directory).
-    - Reads and cleans each file using process_text.clean_text.
-    - Chunks the cleaned text using BGE token counts.
-    - Writes all chunks into a single JSON file:
-        <input>_chunks.json  (for a single file)
-        <directory>_chunks.json  (for a directory)
-
-    Returns
-    -------
-    Path
-        The path to the JSON file that was written.
-    """
+def chunk_path(input_path: Union[str, Path]) -> Path: # calling from a notebook
     input_path = Path(input_path)
 
     # Load tokenizer once and reuse for all documents
@@ -390,18 +344,6 @@ def chunk_path(input_path: Union[str, Path]) -> Path:
 
 
 def main() -> None:
-    """
-    Command-line entry point.
-
-    Usage:
-        python chunking.py INPUT_PATH
-
-    where INPUT_PATH is:
-      • a .txt file, or
-      • a directory containing .txt files.
-
-    All configuration (model, chunk size, overlap) is defined at the top of the file.
-    """
     if len(sys.argv) != 2:
         prog = Path(sys.argv[0]).name
         print(f"Usage: {prog} INPUT_PATH", file=sys.stderr)
@@ -412,7 +354,6 @@ def main() -> None:
         print(f"Error: input path not found: {input_path}", file=sys.stderr)
         sys.exit(1)
 
-    # Run the high-level function
     chunk_path(input_path)
 
 

@@ -24,13 +24,6 @@ Behavior:
 
 Output:
   - <input_basename>_claims.jsonl
-
-Usage from command line:
-    python extract_claims.py INPUT_JSON
-
-Usage from notebook:
-    from extract_claims import extract_claims_from_file
-    out_path = extract_claims_from_file("gdpr_contextualized.json")
 """
 
 import json
@@ -45,20 +38,20 @@ import urllib.error
 
 
 # --------------------------------------------------------------------
-# Configuration constants — edit these if you want different defaults
+# Config
 # --------------------------------------------------------------------
 
 # Base URL of your Ollama server
 OLLAMA_SERVER = "http://localhost:11434"
 
-# Name/tag of the Ollama model to use
-OLLAMA_MODEL = "llama3:8b"
+# Name/tag of the LLM model to use
+OLLAMA_MODEL = "gemma3:4b-it-qat" # gemma3:4b-it-qat
 
 # HTTP timeout for each request (seconds)
 REQUEST_TIMEOUT = 120
 
-# Generation temperature (0.0 = deterministic)
-TEMPERATURE = 0.0
+# Generation temperature
+TEMPERATURE = 0.5
 
 # Print progress every N chunks
 PROGRESS_EVERY = 1
@@ -134,28 +127,7 @@ def call_ollama(
     timeout: int = REQUEST_TIMEOUT,
     temperature: float = TEMPERATURE,
 ) -> str:
-    """
-    Call a local Ollama server using the /api/chat endpoint and
-    return the *raw text content* from the model reply.
-
-    Parameters
-    ----------
-    server : str
-        Base URL for the Ollama server, e.g. "http://localhost:11434".
-    model : str
-        Model tag, e.g. "llama3:8b".
-    prompt : str
-        Text prompt to send as the user message.
-    timeout : int
-        HTTP timeout in seconds.
-    temperature : float
-        Sampling temperature for generation.
-
-    Returns
-    -------
-    str
-        The model's reply text (message.content), stripped of whitespace.
-    """
+    
     url = server.rstrip("/") + "/api/chat"
     payload = {
         "model": model,
@@ -213,52 +185,8 @@ def safe_json_array(s: str) -> List[Dict[str, Any]]:
     return []
 
 
-# --------------------------------------------------------------------
-# Core high-level pipeline (for notebook & script use)
-# --------------------------------------------------------------------
-
+# calling from a notebook
 def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
-    """
-    High-level function to extract claims from a JSON file with chunks
-    and contextualized chunks.
-
-    Parameters
-    ----------
-    input_path : str or Path
-        Path to a JSON file that contains a list of objects, each with:
-          - "doc": document identifier
-          - "id": chunk ID (or "chunk_id")
-          - "chunk": original text passage
-          - "contextualized_chunk": contextual / paraphrased text (optional, but recommended)
-
-    Behavior
-    --------
-    - Reads the JSON list.
-    - For each item, sends BOTH the original chunk and the contextualized chunk
-      to the Ollama model, using PROMPT.
-    - Parses the model's reply as a JSON array of claim objects:
-          { "claim_text": "...", "source_quote": "..." }
-    - Writes one JSON object per claim to an output .jsonl file, with fields:
-          "doc", "chunk_id", "claim_id", "claim_text", "source_quote"
-
-      where:
-          chunk_id = original chunk id (string)
-          claim_id = "<chunk_id>#<n>", n = per-chunk index starting at 1
-
-    - Prints progress every PROGRESS_EVERY chunks.
-
-    Output file name
-    ----------------
-    If the input file is named:
-        example_contextualized.json
-    The output will be:
-        example_claims.jsonl
-
-    Returns
-    -------
-    Path
-        Path to the output .jsonl file.
-    """
     input_path = Path(input_path)
 
     # --- Basic existence check ---
@@ -374,19 +302,6 @@ def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
 # --------------------------------------------------------------------
 
 def main() -> None:
-    """
-    Command-line entry point.
-
-    Usage:
-        python extract_claims.py INPUT_JSON
-
-    Where:
-      • INPUT_JSON is a JSON file with entries containing "chunk"
-        and optionally "contextualized_chunk".
-
-    All configuration (server, model, temperature, progress frequency)
-    is defined via the constants at the top of this file.
-    """
     if len(sys.argv) != 2:
         prog = Path(sys.argv[0]).name
         print(f"Usage: {prog} INPUT_JSON", file=sys.stderr)

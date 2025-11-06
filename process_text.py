@@ -3,17 +3,6 @@ import re
 from pathlib import Path
 
 def clean_text(text: str) -> str:
-    """
-    Clean and normalize a raw text string for chunking.
-
-    This function:
-      • Normalizes punctuation and whitespace.
-      • Merges line breaks that split sentences.
-      • Keeps logical paragraph breaks (double newlines).
-      • Collapses redundant spaces.
-      • Removes accidental spaces before punctuation.
-    """
-
     # --- Normalize punctuation and whitespace characters ---
     # Replace curly quotes, em/en dashes, and non-breaking spaces
     text = (text.replace('‘', "'")
