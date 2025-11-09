@@ -1,5 +1,5 @@
 """
-chunks.py — Process and chunk .txt files using BGE-small token counts.
+chunking.py — Process and chunk .txt files using BGE-small token counts.
 Output: <input>_chunks.json
 
 This module is designed so that you can:
@@ -23,10 +23,10 @@ from process_text import clean_text
 MODEL_ID = "BAAI/bge-small-en-v1.5"
 
 # Maximum number of model tokens per chunk
-MAX_TOKENS_PER_CHUNK = 300
+MAX_TOKENS_PER_CHUNK = 200
 
 # Desired overlap in model tokens between consecutive chunks
-TOKEN_OVERLAP = 50
+TOKEN_OVERLAP = 40
 
 # --------------------------------------------------------------------
 # Regex helpers
@@ -107,16 +107,28 @@ def trim_boundary_token_last(tok: str) -> str:
 
 def starts_ok(token_text: str) -> bool:
     """
-    Check that the first visible character of a chunk is valid.
+    Check that the first visible token of a chunk is valid.
 
-    Rules:
-      • Start must be '(' or a LETTER (A–Z/a–z).
-      • It must NOT start with a digit.
+    Relaxed rules:
+      • Allow chunks starting with '(' or a LETTER (A–Z/a–z), as before.
+      • Also allow numeric list/section markers like '1.', '2)', '3a)', or pure digits '2024'.
+      • Reject tokens that are pure punctuation/whitespace.
     """
     if not token_text:
         return False
-    c = token_text[0]
-    return c == "(" or c.isalpha()
+
+    first = token_text[0]
+
+    # Original rule: letter or '('
+    if first.isalpha() or first == "(":
+        return True
+
+    # New: allow numeric-style list markers / section numbers:
+    #   '1', '1.', '2)', '3a)', '2024', etc.
+    if re.match(r"^\d+[\).]?[A-Za-z]?\)?$", token_text):
+        return True
+
+    return False
 
 
 def has_boundary_rules(text: str) -> bool:
@@ -124,14 +136,21 @@ def has_boundary_rules(text: str) -> bool:
     Final guard on a chunk's boundary characters.
 
     Rules:
-      • First character must be '(' or a letter.
+      • First character must be '(' or a letter, or be part of an allowed numeric marker.
       • Last character must be alphanumeric or ')'.
     """
     if not text:
         return False
-    start_ok = text[0] == "(" or text[0].isalpha()
+
+    # Start check: either the first char is '(' or a letter, or the whole token
+    # (up to the first space) matches the numeric marker pattern.
+    first_char = text[0]
+    if not (first_char == "(" or first_char.isalpha() or re.match(r"^\d+[\).]?[A-Za-z]?\)?", text)):
+        return False
+
+    # End check as before
     end_ok = text[-1].isalnum() or text[-1] == ")"
-    return start_ok and end_ok
+    return end_ok
 
 
 def make_chunks(
@@ -149,7 +168,7 @@ def make_chunks(
 
     Returns:
       A list of textual chunks, each a string, satisfying the boundary rules:
-        - Start: '(' or a LETTER (no digits).
+        - Start: '(', a LETTER, or a numeric list/section marker (e.g. '1.', '2)', '2024').
         - End:   alphanumeric or ')'.
         - Punctuation trimmed at boundaries, but '(' and ')' preserved.
         - Overlapping in terms of token count where possible.
@@ -211,7 +230,7 @@ def make_chunks(
             start = end
             continue
 
-        # Enforce the "no numeric start" rule by moving i forward if needed
+        # Enforce start rule by moving i forward if needed
         while i < j and not starts_ok(first):
             i += 1
             if i < j:
@@ -287,10 +306,18 @@ def gather_input_paths(input_path: Path) -> List[Path]:
     raise ValueError(f"Input must be a .txt file or a directory: {input_path}")
 
 
-def chunk_path(input_path: Union[str, Path]) -> Path: # calling from a notebook
+def chunk_path(input_path: Union[str, Path]) -> Path:
+    """
+    Chunk a single .txt file or all .txt files in a directory, and write
+    a single JSON file with all chunks (with doc/id metadata).
+
+    When called on:
+      • file.txt   → produces file_chunks.json
+      • some_dir/  → produces some_dir_chunks.json
+    """
     input_path = Path(input_path)
 
-    # Load tokenizer once and reuse for all documents
+    # Load tokenizer once and reuse for all documents in this call
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
     # Collect all .txt files we need to process

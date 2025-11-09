@@ -45,13 +45,13 @@ import urllib.error
 OLLAMA_SERVER = "http://localhost:11434"
 
 # Name/tag of the LLM model to use
-OLLAMA_MODEL = "llama3:8b" # gemma3:4b-it-qat
+OLLAMA_MODEL = "gemma3:4b-it-qat" # gemma3:4b-it-qat
 
 # HTTP timeout for each request (seconds)
 REQUEST_TIMEOUT = 120
 
 # Generation temperature
-TEMPERATURE = 0.0
+TEMPERATURE = 0.3
 
 # Print progress every N chunks
 PROGRESS_EVERY = 1
@@ -61,60 +61,60 @@ PROGRESS_EVERY = 1
 # Prompt template sent to the LLM
 # --------------------------------------------------------------------
 
-PROMPT = """You are extracting *atomic, factual claims* from a legal passage.
+PROMPT = """You are extracting *atomic, factual claims* from a passage of text.
 
 You are given TWO related texts:
-1) ORIGINAL_CHUNK: the original source passage (authoritative text)
-2) CONTEXTUALIZED_CHUNK: a brief contextual/interpretive summary (helper only)
+1) ORIGINAL_CHUNK: the authoritative source passage.
+2) CONTEXTUALIZED_CHUNK: a short, self-contained enriched version that helps interpret it.
 
 YOUR TASK
-- Identify explicit, normative statements in the ORIGINAL_CHUNK and rewrite them
-  as *atomic, self-contained factual claims*.
+- Identify explicit, normative, or factual statements in the ORIGINAL_CHUNK.
+- Rewrite each as an *atomic, self-contained factual claim*.
 
 OUTPUT FORMAT
 - Return a JSON array. Each element MUST be an object with keys:
     - "claim_text": a single, self-contained factual statement
       (no vague references like "this", "above", "such provision", etc.)
     - "source_quote": the most specific quote from the ORIGINAL_CHUNK
-      that supports the claim (a substring of ORIGINAL_CHUNK)
+      that supports the claim (a literal substring of ORIGINAL_CHUNK).
 
 STRICT RULES
-- Claims MUST be grounded in the ORIGINAL_CHUNK.
-  • Use CONTEXTUALIZED_CHUNK only to clarify wording, not to invent or
-    generalize new facts.
+- Claims MUST remain grounded in the ORIGINAL_CHUNK.
+- You may use the CONTEXTUALIZED_CHUNK only to:
+    • clarify pronouns or references ("it", "this", "such entity"),
+    • infer document section or actor names if explicitly supported by context,
+    • supply minor missing context (e.g. "the Regulation" → "the GDPR").
 - Do NOT:
-  • invert meanings (e.g. do not turn an inclusion or example into a
-    general exclusion or vice versa),
-  • broaden or narrow the scope beyond what is literally stated,
-  • add conditions, exceptions, or subjects that are not explicitly present.
-- If you are not certain that a statement is *fully* supported by the
-  ORIGINAL_CHUNK, SKIP IT (do not output a claim).
+    • invent or contradict new facts,
+    • broaden or narrow the scope beyond what is literally stated,
+    • change singular ↔ plural (e.g. do not turn "the largest model" → "the models"),
+    • change quantifiers (e.g. do not turn "some" → "all" or "any" → "the"),
+    • add actors, objects, or conditions not explicitly present.
+- Each claim must be *fully* supported by the ORIGINAL_CHUNK; if uncertain, SKIP it.
 
 CONTENT FOCUS
 - Prefer claims that express:
-  • conditions of applicability (when the Regulation applies / does not apply),
-  • scope (who/what is covered),
-  • rights, duties, obligations, prohibitions, permissions, limitations,
-  • effects or consequences.
-- Skip:
-  • purely definitional boilerplate that does not express normative content,
-  • high-level recitals or motivation that add no concrete condition or rule.
+    • conditions of applicability (when it applies / does not apply),
+    • scope (who or what is covered),
+    • rights, duties, obligations, prohibitions, permissions, limitations,
+    • concrete effects or consequences.
 
 STYLE
-- Prefer one idea per claim_text.
-- Paraphrase minimally; preserve legal terms from the ORIGINAL_CHUNK
-  wherever possible.
-- "source_quote" MUST be a literal substring of ORIGINAL_CHUNK
-  (do not paraphrase in source_quote).
+- One idea per claim_text.
+- Paraphrase minimally; preserve exact legal or technical terminology from the ORIGINAL_CHUNK.
+- Use declarative, factual phrasing (e.g. "X must do Y", "Z applies to W").
+- "source_quote" MUST be a literal substring of ORIGINAL_CHUNK.
 
 Text:
 ORIGINAL_CHUNK:
 \"\"\"{original_chunk}\"\"\"
 
 CONTEXTUALIZED_CHUNK:
-\"\"\"{contextualized_chunk}\"\"\"\n
+\"\"\"{contextualized_chunk}\"\"\"
 
 Output ONLY the JSON array (no prose)."""
+
+
 
 # --------------------------------------------------------------------
 # Low-level HTTP / model-calling helpers
