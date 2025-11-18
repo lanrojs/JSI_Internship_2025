@@ -1,19 +1,23 @@
 """
-contextualize.py — Sequential contextualization and embedding pipeline.
+contextualize.py — Sequential contextualization pipeline (middle step).
 
 Input:
-  <base>_chunks.json   # produced by chunks.py
-Output:
+  <base>_chunks.json   # produced by chunk_and_embed.py
+
+Outputs:
   <base>_contextualized.json
   <base>_contextualized.sqlite (table: contextualized_chunks)
 
-Each chunk is processed sequentially:
-  1. Build local raw context (neighbors).
-  2. Retrieve top-N previous contextualized chunks by dense similarity
-     and top-M by BM25 lexical similarity (configurable).
-  3. Ask LLM for 2–3 sentences of explanatory context.
-  4. Append the original chunk.
-  5. Embed both raw + contextualized versions and store them.
+Modes:
+  --mode prefix   (default)
+      - LLM writes a short contextual note ("context prefix").
+      - contextualized_chunk = context_prefix + " " + chunk
+
+  --mode rewrite
+      - LLM REWRITES the passage into a self-contained, compact version,
+        integrating necessary context.
+      - contextualized_chunk = rewritten_passage
+      - context_prefix = rewritten_passage  (no separate note)
 """
 
 import json
@@ -23,9 +27,12 @@ import re
 import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any, Union
+
 import urllib.request
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from jinja2 import Environment, FileSystemLoader
+import argparse
 
 
 # --------------------------------------------------------------------
@@ -34,9 +41,9 @@ from sentence_transformers import SentenceTransformer
 
 # LLM setup
 OLLAMA_SERVER = "http://localhost:11434"
-OLLAMA_MODEL = "llama3:8b"        # or "gemma3:4b-it-qat"
+OLLAMA_MODEL = "gemma3:4b-it-qat"
 REQUEST_TIMEOUT = 120
-TEMPERATURE = 0.2
+TEMPERATURE = 0.1
 MAX_RETRIES = 3
 RETRY_WAIT = 2.0
 
@@ -48,90 +55,36 @@ NORMALIZE_EMBEDDINGS = True
 LOCAL_BEFORE = 2
 LOCAL_AFTER = 1
 
-# Retrieval config
-TOP_K_DENSE = 3       # how many previous chunks to retrieve by dense similarity
-TOP_K_BM25 = 2        # how many previous chunks to retrieve by BM25
+# Retrieval config (over *previous* contextualized chunks)
+TOP_K_RETRIEVE = 2
+
 TABLE_NAME = "contextualized_chunks"
 
+# Prompt templates (Jinja2)
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+PREFIX_TEMPLATE_NAME = "contextualize_prefix.j2"
+REWRITE_TEMPLATE_NAME = "contextualize_rewrite.j2"
+
+# Modes
+MODE_PREFIX = "prefix"
+MODE_REWRITE = "rewrite"
+
 
 # --------------------------------------------------------------------
-# Prompt
+# Jinja2 environment
 # --------------------------------------------------------------------
 
-CONTEXTUALIZE_ENRICH_PROMPT = """
-You are a precise document contextualizer.
+_env = Environment(
+    loader=FileSystemLoader(str(PROMPTS_DIR)),
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
-Goal
------
-Given one SHORT passage ("CURRENT PASSAGE") and some surrounding material
-("LOCAL RAW CONTEXT" and "RETRIEVED CONTEXT"), write 2–3 sentences of
-EXPLANATORY CONTEXT that make the passage self-contained.
 
-The result will later be concatenated with the CURRENT PASSAGE verbatim, so:
-- Do NOT quote, paraphrase, or restate the CURRENT PASSAGE.
-- Do NOT put quotation marks around it.
-- Only write new explanatory sentences.
-
-Grounding rules
----------------
-1. Determine the MAIN TOPIC of the passage **only** from CURRENT PASSAGE
-   (and any visible section headings) and LOCAL RAW CONTEXT.
-2. Use RETRIEVED CONTEXT only to clarify ambiguous references or add small,
-   factual details (dates, names, figures) — never to change the topic.
-3. If a topic or phrase does not appear in the CURRENT PASSAGE or LOCAL RAW CONTEXT,
-   do not mention it.
-4. Stay grounded in the text. Never speculate or generalize beyond the context.
-
-Your sentences must:
-1. Identify what document this is and roughly where this passage fits
-   (e.g., “financial results section of a company report,”
-   “legal definitions in a data privacy policy,” etc.).
-2. Clarify pronouns and vague references (“the company,” “it,” “previous quarter”).
-3. Add concrete facts **only if** they appear explicitly in the context.
-4. Avoid repetition of sentences already present in the CURRENT PASSAGE.
-
-Style:
-- 2–3 fluent, information-rich sentences in plain English, avoid repeating yourself
-- Begin directly with the explanation — no meta phrases like
-  “This passage says…” or “Here is the context.”
-- Avoid bullet points, lists, or commentary.
-- Maintain a neutral, professional tone suitable for regulatory or corporate text.
-
-Common mistakes to avoid
-------------------------
-- Reusing irrelevant topics from distant sections (e.g., calling a human-capital
-   paragraph a “supply chain” discussion).
-- If a concept (for example “supply chain”, “components”, “single or limited sources”)
-  does not appear in the CURRENT PASSAGE or LOCAL RAW CONTEXT, do NOT mention it.
-
-Good example of contextualization that you should aim for:
---------
-CURRENT PASSAGE:
-The company's revenue grew by 3% over the previous quarter.
-
-CONTEXTUALIZED PASSAGE:
-This chunk is from an SEC filing on ACME Corp’s performance in Q2 2023;
-the previous quarter’s revenue was $314 million.
-The company’s revenue grew by 3% over the previous quarter.
-
-Notice that the contextualization adds short explanatory sentences 
-that clarify *where* the passage comes from and *what* it refers to.
-
--------------------- LOCAL RAW CONTEXT --------------------
-<LOCAL_CONTEXT_START>
-{local_context}
-<LOCAL_CONTEXT_END>
-
--------------------- RETRIEVED CONTEXT --------------------
-<RETRIEVED_CONTEXT_START>
-{retrieved_context}
-<RETRIEVED_CONTEXT_END>
-
--------------------- CURRENT PASSAGE --------------------
-<CURRENT_PASSAGE_START>
-{current_passage}
-<CURRENT_PASSAGE_END>
-"""
+def render_prompt(template_name: str, **kwargs) -> str:
+    template = _env.get_template(template_name)
+    return template.render(**kwargs)
 
 
 # --------------------------------------------------------------------
@@ -197,12 +150,12 @@ def bm25_scores(query_tokens, docs_tokens, df, doc_lengths, k1=1.5, b=0.75):
 def ensure_table(conn: sqlite3.Connection):
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
-            doc       TEXT NOT NULL,
-            id        TEXT PRIMARY KEY,
-            chunk_raw TEXT NOT NULL,
-            emb_raw   BLOB NOT NULL,
-            chunk_ctx TEXT NOT NULL,
-            emb_ctx   BLOB NOT NULL
+            doc            TEXT NOT NULL,
+            id             TEXT PRIMARY KEY,
+            chunk_raw      TEXT NOT NULL,
+            context_prefix TEXT NOT NULL,
+            chunk_ctx      TEXT NOT NULL,
+            emb_ctx        BLOB NOT NULL
         )
     """)
     conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{TABLE_NAME}_doc ON {TABLE_NAME}(doc)")
@@ -217,13 +170,19 @@ def to_blob(vec: np.ndarray) -> bytes:
 
 def insert_rows(conn: sqlite3.Connection, rows: List[Dict[str, Any]]):
     payload = [
-        (r["doc"], r["id"], r["chunk_raw"], to_blob(r["emb_raw"]),
-         r["chunk_ctx"], to_blob(r["emb_ctx"]))
+        (
+            r["doc"],
+            r["id"],
+            r["chunk_raw"],
+            r["context_prefix"],
+            r["chunk_ctx"],
+            to_blob(r["emb_ctx"]),
+        )
         for r in rows
     ]
     conn.executemany(
         f"""INSERT OR REPLACE INTO {TABLE_NAME}
-            (doc, id, chunk_raw, emb_raw, chunk_ctx, emb_ctx)
+            (doc, id, chunk_raw, context_prefix, chunk_ctx, emb_ctx)
             VALUES (?, ?, ?, ?, ?, ?)""",
         payload,
     )
@@ -234,25 +193,32 @@ def insert_rows(conn: sqlite3.Connection, rows: List[Dict[str, Any]]):
 # Core contextualization logic
 # --------------------------------------------------------------------
 
-def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: SentenceTransformer):
-    print(f"  Document '{doc}' — {len(chunks)} chunks")
+def contextualize_document(
+    doc: str,
+    chunks: List[Dict[str, Any]],
+    embedder: SentenceTransformer,
+    mode: str = MODE_PREFIX,
+):
+    if mode not in {MODE_PREFIX, MODE_REWRITE}:
+        raise ValueError(f"Unknown mode: {mode}")
 
-    ctx_texts, ctx_embs, ctx_tokens = [], [], []
-    df, doc_lengths = {}, []
-    results, rows = [], []
+    print(f"  Document '{doc}' — {len(chunks)} chunks (mode={mode})")
+
+    # Retrieval memory over *contextualized* history
+    ctx_texts: List[str] = []
+    ctx_embs: List[np.ndarray] = []
+    ctx_tokens: List[List[str]] = []
+    df: Dict[str, int] = {}
+    doc_lengths: List[int] = []
+
+    results: List[Dict[str, Any]] = []
+    rows: List[Dict[str, Any]] = []
 
     for i, item in enumerate(chunks):
         passage = item["chunk"]
         chunk_id = item["id"]
 
-        # 0) Embed the raw passage ONCE per chunk and reuse it
-        q_emb = embedder.encode(
-            [passage],
-            convert_to_numpy=True,
-            normalize_embeddings=NORMALIZE_EMBEDDINGS,
-        )[0]
-
-        # 1) Local context (raw)
+        # 1) Local context (raw neighbors)
         before = [c["chunk"] for c in chunks[max(0, i - LOCAL_BEFORE):i]]
         after = [c["chunk"] for c in chunks[i + 1:i + 1 + LOCAL_AFTER]]
         local_context = "\n\n".join(before + after) or "(no local context)"
@@ -260,22 +226,25 @@ def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: Sen
         # 2) Retrieval over previous contextualized chunks
         retrieved_context = "(no retrieved context)"
         if ctx_texts:
-            # Dense similarity over contextualized embeddings, no vstack
+            # Query embedding from the current *raw* passage (not stored)
+            q_emb = embedder.encode(
+                [passage],
+                convert_to_numpy=True,
+                normalize_embeddings=NORMALIZE_EMBEDDINGS,
+            )[0]
+
             dense_scores = [float(np.dot(e, q_emb)) for e in ctx_embs]
 
-            # BM25 similarity
             query_tokens = simple_tokenize(passage)
             bm25_sc = bm25_scores(query_tokens, ctx_tokens, df, doc_lengths)
 
-            # Top-N from each
             dense_top = sorted(
-                range(len(dense_scores)), key=lambda i: dense_scores[i], reverse=True
-            )[:TOP_K_DENSE]
+                range(len(dense_scores)), key=lambda idx: dense_scores[idx], reverse=True
+            )[:TOP_K_RETRIEVE]
             bm25_top = sorted(
-                range(len(bm25_sc)), key=lambda i: bm25_sc[i], reverse=True
-            )[:TOP_K_BM25]
+                range(len(bm25_sc)), key=lambda idx: bm25_sc[idx], reverse=True
+            )[:TOP_K_RETRIEVE]
 
-            # Merge unique (preserve order)
             seen, merged = set(), []
             for idx in dense_top + bm25_top:
                 if idx not in seen:
@@ -283,13 +252,20 @@ def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: Sen
                     merged.append(idx)
 
             if merged:
-                retrieved_context = "\n\n---\n\n".join(ctx_texts[i] for i in merged)
+                retrieved_context = "\n\n---\n\n".join(ctx_texts[j] for j in merged)
 
-        # 3) Prompt + LLM
-        prompt = CONTEXTUALIZE_ENRICH_PROMPT.format(
+        # 3) Prompt LLM to produce context (prefix or rewrite)
+        if mode == MODE_PREFIX:
+            template_name = PREFIX_TEMPLATE_NAME
+        else:
+            template_name = REWRITE_TEMPLATE_NAME
+
+        prompt = render_prompt(
+            template_name,
             current_passage=passage,
             local_context=local_context,
             retrieved_context=retrieved_context,
+            doc=doc,
         )
 
         reply = ""
@@ -308,21 +284,26 @@ def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: Sen
                 print(f"[warn] {doc}/{chunk_id} attempt {attempt+1}: {e} → wait {wait:.1f}s")
                 time.sleep(wait)
 
-        prefix = reply.strip()
-        if not prefix:
-            prefix = "(No additional context found.)"
-        contextualized = f"{prefix} {passage}"
+        reply = reply.strip()
 
-        # 4) Embeddings (raw + contextualized)
-        #    Reuse q_emb for emb_raw instead of re-encoding
-        emb_raw = q_emb
+        if mode == MODE_PREFIX:
+            context_prefix = reply or "(No additional context found.)"
+            contextualized = f"{context_prefix} {passage}"
+        else:
+            # REWRITE mode:
+            # LLM returns a self-contained rewritten passage.
+            # We store it both as context_prefix and chunk_ctx.
+            contextualized = reply or passage
+            context_prefix = contextualized
+
+        # 4) Embed ONLY the contextualized text
         emb_ctx = embedder.encode(
             [contextualized],
             convert_to_numpy=True,
             normalize_embeddings=NORMALIZE_EMBEDDINGS,
         )[0]
 
-        # 5) Save outputs
+        # 5) Collect outputs
         results.append({
             "doc": doc,
             "id": chunk_id,
@@ -333,12 +314,12 @@ def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: Sen
             "doc": doc,
             "id": chunk_id,
             "chunk_raw": passage,
-            "emb_raw": emb_raw,
+            "context_prefix": context_prefix,
             "chunk_ctx": contextualized,
             "emb_ctx": emb_ctx,
         })
 
-        # 6) Update retrieval index
+        # 6) Update retrieval memory
         ctx_texts.append(contextualized)
         ctx_embs.append(emb_ctx)
         toks = simple_tokenize(contextualized)
@@ -356,7 +337,7 @@ def contextualize_document(doc: str, chunks: List[Dict[str, Any]], embedder: Sen
 # Top-level function
 # --------------------------------------------------------------------
 
-def contextualize_file(input_path: Union[str, Path]) -> Path:
+def contextualize_file(input_path: Union[str, Path], mode: str = MODE_PREFIX) -> Path:
     input_path = Path(input_path)
     base = re.sub(r"_chunks$", "", input_path.stem)
 
@@ -372,16 +353,16 @@ def contextualize_file(input_path: Union[str, Path]) -> Path:
     conn = sqlite3.connect(sqlite_path)
     ensure_table(conn)
 
-    all_results = []
+    all_results: List[Dict[str, Any]] = []
     t0 = time.time()
 
     def sort_id(o):  # numeric sort
         m = re.search(r"_(\d+)$", o["id"])
-        return int(m.group(1)) if m else 1e9
+        return int(m.group(1)) if m else 10**9
 
     for doc, lst in docs.items():
         lst = sorted(lst, key=sort_id)
-        res, rows = contextualize_document(doc, lst, embedder)
+        res, rows = contextualize_document(doc, lst, embedder, mode=mode)
         all_results.extend(res)
         insert_rows(conn, rows)
 
@@ -403,8 +384,21 @@ def contextualize_file(input_path: Union[str, Path]) -> Path:
 # CLI entry
 # --------------------------------------------------------------------
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Sequential contextualization pipeline (prefix or rewrite mode)."
+    )
+    parser.add_argument("input_chunks_json", help="Input <base>_chunks.json")
+    parser.add_argument(
+        "--mode",
+        choices=[MODE_PREFIX, MODE_REWRITE],
+        default=MODE_PREFIX,
+        help="Contextualization mode: 'prefix' (default) or 'rewrite'.",
+    )
+
+    args = parser.parse_args()
+    contextualize_file(args.input_chunks_json, mode=args.mode)
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python contextualize.py INPUT_CHUNKS_JSON", file=sys.stderr)
-        sys.exit(1)
-    contextualize_file(sys.argv[1])
+    main()

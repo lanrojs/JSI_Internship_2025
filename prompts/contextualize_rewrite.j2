@@ -1,0 +1,39 @@
+Rewrite the CURRENT PASSAGE into a single, self-contained passage that remains
+fully faithful to the original meaning. Your rewritten passage must integrate only
+the MINIMUM necessary contextual information from the supplied context so that any
+reader can understand the passage independently.
+
+Base your rewriting strictly on the supplied LOCAL RAW CONTEXT and RETRIEVED CONTEXT.
+Do not invent, infer or speculate. Do not broaden or narrow the meaning of the original
+passage. Preserve legal or technical terminology exactly as written unless greater clarity
+requires a minimal change.
+
+You must EXPLICITLY name the document, the TYPE of document (technical report, SEC filing,
+EU regulation etc.) and the section/subsection where the passage is situated within the
+document.
+
+Resolve vague references (e.g. “this article”, “that report”, “those people”)
+ONLY when the supplied context makes the referent unambiguous.
+
+Define technical terms only if they are SPECIFIC to the field or area of the document
+and would not be understood by an ordinary reader, using only the information present
+in the supplied context.
+
+Your final rewritten passage must be compact, precise, and composed as if it were part
+of the original document. Do not return a summary or a meta-description. Do not include
+headings or explanations—ONLY return the rewritten passage itself.
+
+-------------------- LOCAL RAW CONTEXT (NEIGHBORING PASSAGES - 2 BEFORE, 1 AFTER) --------------------
+<LOCAL_CONTEXT_START>
+{{ local_context }}
+<LOCAL_CONTEXT_END>
+
+-------------------- RETRIEVED CONTEXT (PASSAGES SELECTED BY SIMILARITY SEARCH) --------------------
+<RETRIEVED_CONTEXT_START>
+{{ retrieved_context }}
+<RETRIEVED_CONTEXT_END>
+
+-------------------- CURRENT PASSAGE (TO BE REWRITTEN) --------------------
+<CURRENT_PASSAGE_START>
+{{ current_passage }}
+<CURRENT_PASSAGE_END>

@@ -1,0 +1,31 @@
+Write a concise contextual note (1–3 sentences) explaining the document section and topic
+that the passage comes from. You must EXPLICITLY name the document, the TYPE of document (technical report, SEC filing,
+EU regulation etc.) and the section/subsection where the chunk is situated within the
+document, when that information is available in the context.
+
+Base your note only on the supplied context. Do not infer or speculate beyond what is clearly implied. Do not restate or summarize the passage itself.
+
+Explain any UNKNOWN entities, people or objects that are PRESENT ONLY in the CURRENT PASSAGE,
+but require knowledge of already processed content (e.g. "that article", "those people",
+"that report" etc.), using the context that is given to you.
+
+Define technical terms only if they are SPECIFIC to the field or area of the document, and
+would not be understood by an ordinary reader.
+
+Every contextualized passage must be SELF-CONTAINED, so that anyone can understand the
+setting and topic of the passage without having read the whole document.
+
+-------------------- LOCAL RAW CONTEXT (NEIGHBORING PASSAGES - 2 BEFORE, 1 AFTER) --------------------
+<LOCAL_CONTEXT_START>
+{{ local_context }}
+<LOCAL_CONTEXT_END>
+
+-------------------- RETRIEVED CONTEXT (PASSAGES SELECTED BY SIMILARITY SEARCH) --------------------
+<RETRIEVED_CONTEXT_START>
+{{ retrieved_context }}
+<RETRIEVED_CONTEXT_END>
+
+-------------------- CURRENT PASSAGE (PASSAGE TO BE CONTEXTUALIZED) --------------------
+<CURRENT_PASSAGE_START>
+{{ current_passage }}
+<CURRENT_PASSAGE_END>

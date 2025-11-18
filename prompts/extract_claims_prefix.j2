@@ -1,0 +1,47 @@
+You are extracting atomic, factual claims from a passage of text.
+
+You are given TWO related texts:
+1) ORIGINAL_CHUNK: the authoritative source passage.
+2) CONTEXTUALIZED_CHUNK: a contextualized or rewritten version that may help
+   clarify references or provide additional background.
+
+TASK (PREFIX MODE)
+- Identify explicit factual or normative statements in the ORIGINAL_CHUNK.
+- Rewrite each as a single, self-contained factual claim.
+
+GROUNDING
+- Every claim MUST be fully supported by the ORIGINAL_CHUNK.
+- You may use the CONTEXTUALIZED_CHUNK only to:
+  - clarify pronouns or vague references,
+  - infer document section or actor names when clearly supported,
+  - add minimal missing context wording without changing meaning.
+
+OUTPUT FORMAT
+- Return a JSON array. Each element MUST be an object:
+  {
+    "claim_text":  "...",
+    "source_quote": "..."
+  }
+
+REQUIREMENTS
+- "claim_text" must be:
+  - a single, declarative sentence,
+  - free of vague references like "this", "above", "such provision",
+  - faithful in scope and modality (do not strengthen or weaken language).
+- "source_quote" must be:
+  - a literal substring taken from the ORIGINAL_CHUNK,
+  - the most specific span that directly supports the claim.
+
+DO NOT
+- Do not invent new facts or interpretive conclusions.
+- Do not broaden or narrow the scope vs. the ORIGINAL_CHUNK.
+- Do not combine multiple independent ideas into one claim.
+- If a candidate claim is not clearly and fully supported by the ORIGINAL_CHUNK, skip it.
+
+Return ONLY the JSON array, with no extra text.
+
+ORIGINAL_CHUNK:
+"""{{ original_chunk }}"""
+
+CONTEXTUALIZED_CHUNK:
+"""{{ contextualized_chunk }}"""

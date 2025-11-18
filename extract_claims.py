@@ -1,5 +1,6 @@
 """
 extract_claims.py — extract claims from chunks + contextualized chunks (GraphRAG-style)
+and store them in both JSONL and SQLite with embeddings.
 
 Expected input JSON structure (list of objects):
 [
@@ -7,34 +8,58 @@ Expected input JSON structure (list of objects):
     "doc": "...",
     "id": "...",
     "chunk": "...",                 # original text from the source
-    "contextualized_chunk": "...",  # a short contextual / paraphrased summary
+    "contextualized_chunk": "...",  # contextualized or rewritten version
     "merged_chunk": "..."           # (optional, ignored here)
   },
   ...
 ]
 
+Modes:
+  --mode prefix   (default)
+      - Claims are grounded in the ORIGINAL raw chunk.
+      - contextualized_chunk is used only as auxiliary context to clarify
+        references or reduce ambiguity.
+
+  --mode rewrite
+      - Claims are grounded in the CONTEXTUALIZED_CHUNK (self-contained version).
+      - The raw chunk is available as additional context but the rewritten text
+        is the primary basis for claims.
+
 Behavior:
   • For each item, send BOTH `chunk` and `contextualized_chunk` to a local Ollama model.
-  • The model is instructed to base claims primarily on the original chunk, using the
-    contextualized text only as an aid for interpretation.
+  • The prompt (Jinja2 template) enforces the correct grounding rules per mode.
   • Ask the model to return a JSON array of claims, each with:
         - claim_text
         - source_quote
-  • Write ONE JSON line per claim to an output .jsonl file.
+  • Write ONE JSON line per claim to an output .jsonl file:
+        <base>_claims.jsonl
 
-Output:
-  - <input_basename>_claims.jsonl
+  • Additionally, embed each claim_text with BGE-small and store them in:
+        <base>_claims.sqlite
+
+    SQLite schema (table: claims):
+        doc          TEXT NOT NULL
+        chunk_id     TEXT NOT NULL
+        claim_id     TEXT PRIMARY KEY
+        claim_text   TEXT NOT NULL
+        source_quote TEXT
+        emb          BLOB NOT NULL
 """
 
+import argparse
 import json
+import re
+import sqlite3
 import sys
 import time
-import re
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import List, Dict, Any, Union
 
-import urllib.request
-import urllib.error
+import numpy as np
+from jinja2 import Environment, FileSystemLoader
+from sentence_transformers import SentenceTransformer
 
 
 # --------------------------------------------------------------------
@@ -45,7 +70,7 @@ import urllib.error
 OLLAMA_SERVER = "http://localhost:11434"
 
 # Name/tag of the LLM model to use
-OLLAMA_MODEL = "gemma3:4b-it-qat" # gemma3:4b-it-qat
+OLLAMA_MODEL = "gemma3:4b-it-qat"  # or whatever local model you use
 
 # HTTP timeout for each request (seconds)
 REQUEST_TIMEOUT = 120
@@ -56,64 +81,39 @@ TEMPERATURE = 0.3
 # Print progress every N chunks
 PROGRESS_EVERY = 1
 
+# Embedding model for claims
+EMBED_MODEL_ID = "BAAI/bge-small-en-v1.5"
+CLAIM_BATCH_SIZE = 64
+NORMALIZE_EMBEDDINGS = True
+
+# SQLite
+CLAIMS_TABLE_NAME = "claims"
+
+# Modes
+MODE_PREFIX = "prefix"
+MODE_REWRITE = "rewrite"
+
+# Prompt templates (Jinja2)
+PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+PREFIX_TEMPLATE_NAME = "extract_claims_prefix.j2"
+REWRITE_TEMPLATE_NAME = "extract_claims_rewrite.j2"
+
 
 # --------------------------------------------------------------------
-# Prompt template sent to the LLM
+# Jinja2 environment
 # --------------------------------------------------------------------
 
-PROMPT = """You are extracting *atomic, factual claims* from a passage of text.
+_env = Environment(
+    loader=FileSystemLoader(str(PROMPTS_DIR)),
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
-You are given TWO related texts:
-1) ORIGINAL_CHUNK: the authoritative source passage.
-2) CONTEXTUALIZED_CHUNK: a short, self-contained enriched version that helps interpret it.
 
-YOUR TASK
-- Identify explicit, normative, or factual statements in the ORIGINAL_CHUNK.
-- Rewrite each as an *atomic, self-contained factual claim*.
-
-OUTPUT FORMAT
-- Return a JSON array. Each element MUST be an object with keys:
-    - "claim_text": a single, self-contained factual statement
-      (no vague references like "this", "above", "such provision", etc.)
-    - "source_quote": the most specific quote from the ORIGINAL_CHUNK
-      that supports the claim (a literal substring of ORIGINAL_CHUNK).
-
-STRICT RULES
-- Claims MUST remain grounded in the ORIGINAL_CHUNK.
-- You may use the CONTEXTUALIZED_CHUNK only to:
-    • clarify pronouns or references ("it", "this", "such entity"),
-    • infer document section or actor names if explicitly supported by context,
-    • supply minor missing context (e.g. "the Regulation" → "the GDPR").
-- Do NOT:
-    • invent or contradict new facts,
-    • broaden or narrow the scope beyond what is literally stated,
-    • change singular ↔ plural (e.g. do not turn "the largest model" → "the models"),
-    • change quantifiers (e.g. do not turn "some" → "all" or "any" → "the"),
-    • add actors, objects, or conditions not explicitly present.
-- Each claim must be *fully* supported by the ORIGINAL_CHUNK; if uncertain, SKIP it.
-
-CONTENT FOCUS
-- Prefer claims that express:
-    • conditions of applicability (when it applies / does not apply),
-    • scope (who or what is covered),
-    • rights, duties, obligations, prohibitions, permissions, limitations,
-    • concrete effects or consequences.
-
-STYLE
-- One idea per claim_text.
-- Paraphrase minimally; preserve exact legal or technical terminology from the ORIGINAL_CHUNK.
-- Use declarative, factual phrasing (e.g. "X must do Y", "Z applies to W").
-- "source_quote" MUST be a literal substring of ORIGINAL_CHUNK.
-
-Text:
-ORIGINAL_CHUNK:
-\"\"\"{original_chunk}\"\"\"
-
-CONTEXTUALIZED_CHUNK:
-\"\"\"{contextualized_chunk}\"\"\"
-
-Output ONLY the JSON array (no prose)."""
-
+def render_prompt(template_name: str, **kwargs) -> str:
+    template = _env.get_template(template_name)
+    return template.render(**kwargs)
 
 
 # --------------------------------------------------------------------
@@ -127,7 +127,6 @@ def call_ollama(
     timeout: int = REQUEST_TIMEOUT,
     temperature: float = TEMPERATURE,
 ) -> str:
-    
     url = server.rstrip("/") + "/api/chat"
     payload = {
         "model": model,
@@ -162,11 +161,6 @@ def safe_json_array(s: str) -> List[Dict[str, Any]]:
       2. Extracts that substring.
       3. Tries to json.loads it.
       4. Returns a list if successful, otherwise [].
-
-    Returns
-    -------
-    list
-        A list of parsed objects (possibly empty if parsing failed).
     """
     s = s.strip()
     start = s.find("[")
@@ -185,17 +179,86 @@ def safe_json_array(s: str) -> List[Dict[str, Any]]:
     return []
 
 
-# calling from a notebook
-def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
+# --------------------------------------------------------------------
+# SQLite + embedding helpers for claims
+# --------------------------------------------------------------------
+
+def ensure_claims_table(conn: sqlite3.Connection) -> None:
+    """
+    Ensure the 'claims' table exists.
+
+    Schema:
+        doc          TEXT
+        chunk_id     TEXT
+        claim_id     TEXT PRIMARY KEY
+        claim_text   TEXT
+        source_quote TEXT
+        emb          BLOB
+    """
+    conn.execute(f"""
+        CREATE TABLE IF NOT EXISTS {CLAIMS_TABLE_NAME} (
+            doc          TEXT NOT NULL,
+            chunk_id     TEXT NOT NULL,
+            claim_id     TEXT PRIMARY KEY,
+            claim_text   TEXT NOT NULL,
+            source_quote TEXT,
+            emb          BLOB NOT NULL
+        )
+    """)
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{CLAIMS_TABLE_NAME}_doc ON {CLAIMS_TABLE_NAME}(doc)")
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{CLAIMS_TABLE_NAME}_chunk ON {CLAIMS_TABLE_NAME}(chunk_id)")
+    conn.commit()
+
+
+def to_blob(vec: np.ndarray) -> bytes:
+    if vec.dtype != np.float32:
+        vec = vec.astype(np.float32, copy=False)
+    return vec.tobytes(order="C")
+
+
+def insert_claim_rows(conn: sqlite3.Connection, rows: List[Dict[str, Any]]) -> None:
+    payload = [
+        (
+            r["doc"],
+            r["chunk_id"],
+            r["claim_id"],
+            r["claim_text"],
+            r["source_quote"],
+            to_blob(r["emb"]),
+        )
+        for r in rows
+    ]
+    conn.executemany(
+        f"""
+        INSERT OR REPLACE INTO {CLAIMS_TABLE_NAME}
+        (doc, chunk_id, claim_id, claim_text, source_quote, emb)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        payload,
+    )
+    conn.commit()
+
+
+# --------------------------------------------------------------------
+# Main extraction + embedding logic
+# --------------------------------------------------------------------
+
+def extract_claims_from_file(input_path: Union[str, Path], mode: str = MODE_PREFIX) -> Path:
+    if mode not in {MODE_PREFIX, MODE_REWRITE}:
+        raise ValueError(f"Unknown mode: {mode}")
+
     input_path = Path(input_path)
 
     # --- Basic existence check ---
     if not input_path.exists():
         raise FileNotFoundError(f"Input not found: {input_path}")
 
-    # --- Derive output path: strip trailing '_contextualized' from the stem ---
+    # --- Derive base name (strip trailing '_contextualized' if present) ---
     base = re.sub(r"_contextualized$", "", input_path.stem)
+
+    # --- Output paths ---
     out_path = input_path.with_name(f"{base}_claims.jsonl")
+    sqlite_path = input_path.with_name(f"{base}_claims.sqlite")
 
     # --- Load input JSON (must be a list) ---
     try:
@@ -207,11 +270,21 @@ def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
         raise ValueError("Input JSON must be a list of objects.")
 
     total = len(items)
-    print(f"Total chunks: {total}", flush=True)
+    print(f"Total chunks: {total} (mode={mode})", flush=True)
 
     written = 0       # how many claims we've written so far
     empty_chunks = 0  # how many chunks had no usable text
     t0 = time.time()  # start time
+
+    # --- Initialize embedder + SQLite for claims ---
+    embedder = SentenceTransformer(EMBED_MODEL_ID)
+    conn = sqlite3.connect(sqlite_path)
+    ensure_claims_table(conn)
+
+    all_claims: List[Dict[str, Any]] = []
+
+    # choose template
+    template_name = PREFIX_TEMPLATE_NAME if mode == MODE_PREFIX else REWRITE_TEMPLATE_NAME
 
     # --- Open output JSONL for writing ---
     with out_path.open("w", encoding="utf-8") as out:
@@ -236,9 +309,12 @@ def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
                     )
                 continue
 
-            # Fill the prompt template with BOTH texts.
-            # The prompt tells the model to ground claims in ORIGINAL_CHUNK.
-            prompt = PROMPT.format(
+            # --- Render the prompt with Jinja2 ---
+            prompt = render_prompt(
+                template_name,
+                mode=mode,
+                doc=doc,
+                chunk_id=cid,
                 original_chunk=original_chunk,
                 contextualized_chunk=contextualized_chunk,
             )
@@ -282,8 +358,12 @@ def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
                     "source_quote": (claim.get("source_quote") or "").strip(),
                 }
 
+                # Write JSONL
                 out.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 written += 1
+
+                # Store in memory for embedding/SQLite
+                all_claims.append(rec)
 
             # Periodic progress logging
             if i % PROGRESS_EVERY == 0 or i == total:
@@ -292,24 +372,72 @@ def extract_claims_from_file(input_path: Union[str, Path]) -> Path:
                     flush=True,
                 )
 
+    # --- Embed all claims and store in SQLite ---
+    if all_claims:
+        print(f"\nEmbedding {len(all_claims)} claims and writing to SQLite → {sqlite_path}")
+        rows_for_db: List[Dict[str, Any]] = []
+
+        for start_idx in range(0, len(all_claims), CLAIM_BATCH_SIZE):
+            batch = all_claims[start_idx : start_idx + CLAIM_BATCH_SIZE]
+            texts = [c["claim_text"] for c in batch]
+
+            embs = embedder.encode(
+                texts,
+                convert_to_numpy=True,
+                normalize_embeddings=False,
+            )
+
+            if NORMALIZE_EMBEDDINGS:
+                norms = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
+                embs = embs / norms
+
+            for offset, rec in enumerate(batch):
+                rows_for_db.append(
+                    {
+                        "doc": rec["doc"],
+                        "chunk_id": rec["chunk_id"],
+                        "claim_id": rec["claim_id"],
+                        "claim_text": rec["claim_text"],
+                        "source_quote": rec["source_quote"],
+                        "emb": embs[offset],
+                    }
+                )
+
+        insert_claim_rows(conn, rows_for_db)
+        print(f"Inserted {len(rows_for_db)} claims into SQLite.")
+
+    conn.close()
+
     dt = time.time() - t0
     print(f"✓ Done. Wrote {written} claims to: {out_path} in {dt:.1f}s", flush=True)
+    print(f"   Claims embeddings stored in: {sqlite_path}")
     return out_path
 
 
 # --------------------------------------------------------------------
-# Simple CLI wrapper with a single positional argument
+# Simple CLI wrapper with argparse
 # --------------------------------------------------------------------
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        prog = Path(sys.argv[0]).name
-        print(f"Usage: {prog} INPUT_JSON", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Extract atomic factual claims from chunks + contextualized chunks."
+    )
+    parser.add_argument("input_json", help="Input <base>_contextualized.json")
+    parser.add_argument(
+        "--mode",
+        choices=[MODE_PREFIX, MODE_REWRITE],
+        default=MODE_PREFIX,
+        help=(
+            "Claim extraction mode:\n"
+            "  prefix  - claims grounded in the raw chunk (default)\n"
+            "  rewrite - claims grounded in contextualized_chunk"
+        ),
+    )
+    args = parser.parse_args()
 
-    input_path = Path(sys.argv[1])
+    input_path = Path(args.input_json)
     try:
-        extract_claims_from_file(input_path)
+        extract_claims_from_file(input_path, mode=args.mode)
     except Exception as e:
         print(f"[!] Error: {e}", file=sys.stderr)
         sys.exit(1)
