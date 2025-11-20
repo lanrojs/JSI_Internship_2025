@@ -1,12 +1,36 @@
 """
 contextualize.py — Sequential contextualization pipeline (middle step).
 
+Pipeline:
+  1) Take raw chunks (<base>_chunks.json from chunk_and_embed.py).
+  2) For each chunk, assemble context from:
+       - local neighbors in the same document
+       - previous contextualized chunks in the same document (dense + BM25)
+       - OPTIONAL external "system" corpus of raw chunks (dense + BM25)
+  3) Call a local LLM (Ollama) in either:
+       - prefix mode: generate a short context note and prepend to the chunk
+       - rewrite mode: rewrite into a self-contained passage
+  4) Store contextualized chunks + embeddings in:
+       - <base>_contextualized.json
+       - <base>_contextualized.sqlite (table: contextualized_chunks)
+
 Input:
   <base>_chunks.json   # produced by chunk_and_embed.py
 
 Outputs:
-  <base>_contextualized.json
+  <base>_contextualized.json         # list of objects:
+    {
+      "doc": ...,
+      "id": ...,
+      "chunk": ...,
+      "contextualized_chunk": ...,
+      "local_neighbor_ids": [...],
+      "doc_retrieved_ids": [...],
+      "system_retrieved_ids": [...]
+    }
+
   <base>_contextualized.sqlite (table: contextualized_chunks)
+    doc, id, chunk_raw, context_prefix, chunk_ctx, emb_ctx
 
 Modes:
   --mode prefix   (default)
@@ -18,15 +42,26 @@ Modes:
         integrating necessary context.
       - contextualized_chunk = rewritten_passage
       - context_prefix = rewritten_passage  (no separate note)
+
+System context (use_system / k_sys):
+  - External corpus = multiple .sqlite files in a folder (SYSTEM_DB_DIR).
+  - Each DB is expected to contain table raw_chunks(doc, id, chunk, emb).
+  - For each chunk, we:
+      * embed the current passage (BGE-small)
+      * run dense + BM25 retrieval over all external raw_chunks
+      * combine scores (dense + BM25) and take top SYSTEM_TOP_K segments
+  - Controlled by:
+      USE_SYSTEM    (bool)
+      SYSTEM_DB_DIR (Path)
+      SYSTEM_TOP_K  (int, default 2 = k_sys)
 """
 
 import json
-import sys
 import time
 import re
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Tuple
 
 import urllib.request
 import numpy as np
@@ -39,9 +74,9 @@ import argparse
 # Config
 # --------------------------------------------------------------------
 
-# LLM setup
+# LLM setup (Ollama)
 OLLAMA_SERVER = "http://localhost:11434"
-OLLAMA_MODEL = "gemma3:4b-it-qat"
+OLLAMA_MODEL = "mistral:7b" #gemma2:9b
 REQUEST_TIMEOUT = 120
 TEMPERATURE = 0.1
 MAX_RETRIES = 3
@@ -51,12 +86,24 @@ RETRY_WAIT = 2.0
 EMBED_MODEL_ID = "BAAI/bge-small-en-v1.5"
 NORMALIZE_EMBEDDINGS = True
 
-# Local context window
-LOCAL_BEFORE = 2
+# Local context window (same-doc neighbors)
+LOCAL_BEFORE = 1
 LOCAL_AFTER = 1
 
-# Retrieval config (over *previous* contextualized chunks)
-TOP_K_RETRIEVE = 2
+# Retrieval config (over *previous* contextualized chunks in the same doc)
+TOP_K_RETRIEVE = 2  # k_doc
+
+# Whether to avoid reusing passages that are already local neighbors
+DEDUP_RETRIEVED_AGAINST_LOCAL = True
+
+# System context (external corpus of raw chunks)
+USE_SYSTEM = False  # flip to True to enable external retrieval
+SYSTEM_DB_DIR = Path(__file__).resolve().parent / "system_corpus"
+SYSTEM_TOP_K = 2  # k_sys
+
+# Dense/BM25 combination weights (after min–max normalization)
+DENSE_WEIGHT = 0.6
+BM25_WEIGHT = 0.4
 
 TABLE_NAME = "contextualized_chunks"
 
@@ -105,9 +152,18 @@ def call_ollama(server: str, model: str, prompt: str, timeout: int, temperature:
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        obj = json.loads(resp.read().decode("utf-8"))
-    return (obj.get("message") or {}).get("content", "").strip()
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                obj = json.loads(resp.read().decode("utf-8"))
+            return (obj.get("message") or {}).get("content", "").strip()
+        except Exception as e:
+            wait = RETRY_WAIT * (2 ** attempt)
+            print(f"[warn] Ollama call failed (attempt {attempt+1}): {e} → wait {wait:.1f}s")
+            time.sleep(wait)
+
+    return ""
 
 
 # --------------------------------------------------------------------
@@ -143,8 +199,47 @@ def bm25_scores(query_tokens, docs_tokens, df, doc_lengths, k1=1.5, b=0.75):
     return scores
 
 
+def _minmax_normalize(scores: List[float]) -> List[float]:
+    if not scores:
+        return []
+    s_min = min(scores)
+    s_max = max(scores)
+    if s_max <= s_min:
+        # All equal → return zeros
+        return [0.0 for _ in scores]
+    return [(s - s_min) / (s_max - s_min) for s in scores]
+
+
+def rank_indices_combined(
+    dense_scores: List[float],
+    bm25_sc: List[float],
+    top_k: int,
+) -> List[int]:
+    """
+    Combine dense+BM25 scores via min–max normalization + weighted sum,
+    then return indices of the top_k items.
+    """
+    n = len(dense_scores)
+    if n == 0:
+        return []
+
+    if len(bm25_sc) != n:
+        # Fallback: dense only
+        return sorted(range(n), key=lambda i: dense_scores[i], reverse=True)[:top_k]
+
+    d_norm = _minmax_normalize(dense_scores)
+    b_norm = _minmax_normalize(bm25_sc)
+
+    combined = [
+        DENSE_WEIGHT * d_norm[i] + BM25_WEIGHT * b_norm[i]
+        for i in range(n)
+    ]
+
+    return sorted(range(n), key=lambda i: combined[i], reverse=True)[:top_k]
+
+
 # --------------------------------------------------------------------
-# SQLite helpers
+# SQLite helpers (contextualized chunks)
 # --------------------------------------------------------------------
 
 def ensure_table(conn: sqlite3.Connection):
@@ -190,6 +285,125 @@ def insert_rows(conn: sqlite3.Connection, rows: List[Dict[str, Any]]):
 
 
 # --------------------------------------------------------------------
+# System corpus helpers (external raw_chunks)
+# --------------------------------------------------------------------
+
+def from_blob(blob: bytes) -> np.ndarray:
+    """Decode a float32 embedding from a SQLite BLOB."""
+    return np.frombuffer(blob, dtype=np.float32)
+
+
+def load_system_corpus(db_dir: Path) -> Dict[str, Any]:
+    """
+    Load an external corpus from all .sqlite files in `db_dir`.
+
+    Expected schema in each DB:
+        raw_chunks(doc TEXT, id TEXT, chunk TEXT, emb BLOB)
+
+    Returns a dict with:
+        {
+          "texts": List[str],
+          "embs": List[np.ndarray],
+          "tokens": List[List[str]],
+          "df": Dict[str, int],
+          "doc_lengths": List[int],
+          "ids": List[str],        # chunk IDs (e.g. "gdpr_42")
+        }
+    """
+    texts: List[str] = []
+    embs: List[np.ndarray] = []
+    tokens: List[List[str]] = []
+    df: Dict[str, int] = {}
+    doc_lengths: List[int] = []
+    ids: List[str] = []
+
+    if not db_dir.exists():
+        print(f"[system] directory not found: {db_dir} (system context disabled)")
+        return {"texts": [], "embs": [], "tokens": [], "df": {}, "doc_lengths": [], "ids": []}
+
+    for db_path in sorted(db_dir.glob("*.sqlite")):
+        try:
+            conn = sqlite3.connect(db_path)
+            # Check for raw_chunks
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='raw_chunks'"
+            ).fetchall()
+            if not rows:
+                conn.close()
+                continue
+
+            count = 0
+            for doc, chunk_id, chunk_text, emb_blob in conn.execute(
+                "SELECT doc, id, chunk, emb FROM raw_chunks"
+            ):
+                if not chunk_text:
+                    continue
+                vec = from_blob(emb_blob)
+                texts.append(chunk_text)
+                embs.append(vec)
+                toks = simple_tokenize(chunk_text)
+                tokens.append(toks)
+                doc_lengths.append(len(toks))
+                for t in set(toks):
+                    df[t] = df.get(t, 0) + 1
+                ids.append(str(chunk_id))
+                count += 1
+
+            conn.close()
+            print(f"[system] loaded {count} raw chunks from {db_path.name}")
+        except Exception as e:
+            print(f"[system] failed reading {db_path}: {e}")
+
+    print(f"[system] total external raw chunks: {len(texts)} from {db_dir}")
+    return {
+        "texts": texts,
+        "embs": embs,
+        "tokens": tokens,
+        "df": df,
+        "doc_lengths": doc_lengths,
+        "ids": ids,
+    }
+
+
+def retrieve_system_context(
+    passage: str,
+    q_emb: np.ndarray,
+    system_corpus: Dict[str, Any],
+    top_k: int,
+) -> Tuple[str, List[str]]:
+    """
+    Dense + BM25 retrieval over the external system corpus.
+
+    Returns:
+      system_context_text: concatenated text block of up to `top_k` passages.
+      system_ids:          list of retrieved external chunk IDs.
+    """
+    texts = system_corpus.get("texts") or []
+    embs = system_corpus.get("embs") or []
+    tokens = system_corpus.get("tokens") or []
+    df = system_corpus.get("df") or {}
+    doc_lengths = system_corpus.get("doc_lengths") or []
+    ids = system_corpus.get("ids") or []
+
+    if not texts:
+        return "(no system context)", []
+
+    dense_scores = [float(np.dot(e, q_emb)) for e in embs]
+
+    query_tokens = simple_tokenize(passage)
+    bm25_sc = bm25_scores(query_tokens, tokens, df, doc_lengths)
+
+    top_indices = rank_indices_combined(dense_scores, bm25_sc, top_k)
+
+    if not top_indices:
+        return "(no system context)", []
+
+    context_text = "\n\n---\n\n".join(texts[j] for j in top_indices)
+    retrieved_ids = [ids[j] for j in top_indices]
+    return context_text, retrieved_ids
+
+
+# --------------------------------------------------------------------
 # Core contextualization logic
 # --------------------------------------------------------------------
 
@@ -198,63 +412,91 @@ def contextualize_document(
     chunks: List[Dict[str, Any]],
     embedder: SentenceTransformer,
     mode: str = MODE_PREFIX,
+    system_corpus: Dict[str, Any] = None,
 ):
     if mode not in {MODE_PREFIX, MODE_REWRITE}:
         raise ValueError(f"Unknown mode: {mode}")
 
     print(f"  Document '{doc}' — {len(chunks)} chunks (mode={mode})")
 
-    # Retrieval memory over *contextualized* history
+    # Retrieval memory over *contextualized* history (same doc)
     ctx_texts: List[str] = []
     ctx_embs: List[np.ndarray] = []
     ctx_tokens: List[List[str]] = []
-    df: Dict[str, int] = {}
+    ctx_ids: List[str] = []
+    df_doc: Dict[str, int] = {}
     doc_lengths: List[int] = []
 
     results: List[Dict[str, Any]] = []
     rows: List[Dict[str, Any]] = []
 
+    n_chunks = len(chunks)
+
     for i, item in enumerate(chunks):
         passage = item["chunk"]
         chunk_id = item["id"]
 
-        # 1) Local context (raw neighbors)
-        before = [c["chunk"] for c in chunks[max(0, i - LOCAL_BEFORE):i]]
-        after = [c["chunk"] for c in chunks[i + 1:i + 1 + LOCAL_AFTER]]
-        local_context = "\n\n".join(before + after) or "(no local context)"
+        # 1) Local context (raw neighbors) → IDs for debugging
+        start_local = max(0, i - LOCAL_BEFORE)
+        end_local = min(n_chunks, i + 1 + LOCAL_AFTER)
+        local_neighbor_ids = [
+            chunks[j]["id"]
+            for j in range(start_local, end_local)
+            if j != i
+        ]
+        before = [chunks[j]["chunk"] for j in range(start_local, i)]
+        after = [chunks[j]["chunk"] for j in range(i + 1, end_local)]
 
-        # 2) Retrieval over previous contextualized chunks
+        local_context_before = "\n\n".join(before) or "(no previous local context)"
+        local_context_after = "\n\n".join(after) or "(no following local context)"
+
+
+        # 2) Prepare query embedding once per chunk
+        q_emb = embedder.encode(
+            [passage],
+            convert_to_numpy=True,
+            normalize_embeddings=NORMALIZE_EMBEDDINGS,
+        )[0]
+
+        # 3) Retrieval over previous contextualized chunks (document context)
         retrieved_context = "(no retrieved context)"
+        doc_retrieved_ids: List[str] = []
         if ctx_texts:
-            # Query embedding from the current *raw* passage (not stored)
-            q_emb = embedder.encode(
-                [passage],
-                convert_to_numpy=True,
-                normalize_embeddings=NORMALIZE_EMBEDDINGS,
-            )[0]
-
             dense_scores = [float(np.dot(e, q_emb)) for e in ctx_embs]
 
             query_tokens = simple_tokenize(passage)
-            bm25_sc = bm25_scores(query_tokens, ctx_tokens, df, doc_lengths)
+            bm25_sc = bm25_scores(query_tokens, ctx_tokens, df_doc, doc_lengths)
 
-            dense_top = sorted(
-                range(len(dense_scores)), key=lambda idx: dense_scores[idx], reverse=True
-            )[:TOP_K_RETRIEVE]
-            bm25_top = sorted(
-                range(len(bm25_sc)), key=lambda idx: bm25_sc[idx], reverse=True
-            )[:TOP_K_RETRIEVE]
+            top_indices = rank_indices_combined(dense_scores, bm25_sc, TOP_K_RETRIEVE)
 
-            seen, merged = set(), []
-            for idx in dense_top + bm25_top:
-                if idx not in seen:
-                    seen.add(idx)
-                    merged.append(idx)
+            # Optionally deduplicate: skip retrieved chunks that are already local neighbors
+            if DEDUP_RETRIEVED_AGAINST_LOCAL:
+                candidate_indices = [
+                    j for j in top_indices
+                    if ctx_ids[j] not in local_neighbor_ids
+                ]
+            else:
+                candidate_indices = top_indices
 
-            if merged:
-                retrieved_context = "\n\n---\n\n".join(ctx_texts[j] for j in merged)
+            if candidate_indices:
+                retrieved_context = "\n\n---\n\n".join(
+                    ctx_texts[j] for j in candidate_indices
+                )
+                doc_retrieved_ids = [ctx_ids[j] for j in candidate_indices]
 
-        # 3) Prompt LLM to produce context (prefix or rewrite)
+
+        # 4) System context (external corpus of raw_chunks)
+        system_context = "(no system context)"
+        system_retrieved_ids: List[str] = []
+        if system_corpus:
+            system_context, system_retrieved_ids = retrieve_system_context(
+                passage,
+                q_emb,
+                system_corpus,
+                SYSTEM_TOP_K,
+            )
+
+        # 5) Prompt LLM to produce context (prefix or rewrite)
         if mode == MODE_PREFIX:
             template_name = PREFIX_TEMPLATE_NAME
         else:
@@ -263,72 +505,91 @@ def contextualize_document(
         prompt = render_prompt(
             template_name,
             current_passage=passage,
-            local_context=local_context,
+            local_context_before=local_context_before,
+            local_context_after=local_context_after,
             retrieved_context=retrieved_context,
+            system_context=system_context,
             doc=doc,
         )
 
-        reply = ""
-        for attempt in range(MAX_RETRIES):
-            try:
-                reply = call_ollama(
-                    OLLAMA_SERVER,
-                    OLLAMA_MODEL,
-                    prompt,
-                    REQUEST_TIMEOUT,
-                    TEMPERATURE,
-                )
-                break
-            except Exception as e:
-                wait = RETRY_WAIT * (2 ** attempt)
-                print(f"[warn] {doc}/{chunk_id} attempt {attempt+1}: {e} → wait {wait:.1f}s")
-                time.sleep(wait)
+        # DEBUG: show the first part of the actual prompt
+        print("\n===== PROMPT DEBUG =====")
+        print(prompt)
+        print("===== END PROMPT DEBUG =====\n")
 
-        reply = reply.strip()
+        reply = call_ollama(
+            OLLAMA_SERVER,
+            OLLAMA_MODEL,
+            prompt,
+            REQUEST_TIMEOUT,
+            TEMPERATURE,
+        ).strip()
+        print("\n===== LLM RAW RESPONSE =====")
+        print(reply)
+        print("===== END LLM RAW RESPONSE =====\n")
+
+
+
 
         if mode == MODE_PREFIX:
             context_prefix = reply or "(No additional context found.)"
             contextualized = f"{context_prefix} {passage}"
         else:
-            # REWRITE mode:
-            # LLM returns a self-contained rewritten passage.
-            # We store it both as context_prefix and chunk_ctx.
+            # REWRITE mode: LLM returns a self-contained rewritten passage.
             contextualized = reply or passage
             context_prefix = contextualized
 
-        # 4) Embed ONLY the contextualized text
+        # 6) Embed ONLY the contextualized text
         emb_ctx = embedder.encode(
             [contextualized],
             convert_to_numpy=True,
             normalize_embeddings=NORMALIZE_EMBEDDINGS,
         )[0]
 
-        # 5) Collect outputs
-        results.append({
+        # 7) Collect outputs (JSON) including retrieval debugging info
+                # 7) Collect outputs (JSON) including retrieval debugging info
+        # 7) Collect outputs (JSON) including retrieval debugging info
+        result_obj = {
             "doc": doc,
             "id": chunk_id,
             "chunk": passage,
+        }
+
+        # Insert context_prefix directly after "chunk" ONLY in prefix mode
+        if mode == MODE_PREFIX:
+            result_obj["context_prefix"] = context_prefix
+
+        # Then continue with the rest
+        result_obj.update({
             "contextualized_chunk": contextualized,
+            "local_neighbor_ids": local_neighbor_ids,
+            "doc_retrieved_ids": doc_retrieved_ids,
+            "system_retrieved_ids": system_retrieved_ids,
         })
+
+        results.append(result_obj)
+
+
         rows.append({
             "doc": doc,
             "id": chunk_id,
             "chunk_raw": passage,
-            "context_prefix": context_prefix,
+            "context_prefix": context_prefix,   # still required for SQLite schema
             "chunk_ctx": contextualized,
             "emb_ctx": emb_ctx,
         })
 
-        # 6) Update retrieval memory
+        # 8) Update retrieval memory for document-level context
         ctx_texts.append(contextualized)
         ctx_embs.append(emb_ctx)
         toks = simple_tokenize(contextualized)
         ctx_tokens.append(toks)
         doc_lengths.append(len(toks))
+        ctx_ids.append(chunk_id)
         for t in set(toks):
-            df[t] = df.get(t, 0) + 1
+            df_doc[t] = df_doc.get(t, 0) + 1
 
-        print(f"    [{i+1}/{len(chunks)}] contextualized for '{doc}'", flush=True)
+        print(f"    [{i+1}/{n_chunks}] contextualized for '{doc}'", flush=True)
 
     return results, rows
 
@@ -353,6 +614,13 @@ def contextualize_file(input_path: Union[str, Path], mode: str = MODE_PREFIX) ->
     conn = sqlite3.connect(sqlite_path)
     ensure_table(conn)
 
+    # Load external system corpus once (if enabled)
+    system_corpus: Dict[str, Any] = {}
+    if USE_SYSTEM:
+        system_corpus = load_system_corpus(SYSTEM_DB_DIR)
+    else:
+        system_corpus = {}
+
     all_results: List[Dict[str, Any]] = []
     t0 = time.time()
 
@@ -362,7 +630,13 @@ def contextualize_file(input_path: Union[str, Path], mode: str = MODE_PREFIX) ->
 
     for doc, lst in docs.items():
         lst = sorted(lst, key=sort_id)
-        res, rows = contextualize_document(doc, lst, embedder, mode=mode)
+        res, rows = contextualize_document(
+            doc,
+            lst,
+            embedder,
+            mode=mode,
+            system_corpus=system_corpus if USE_SYSTEM else None,
+        )
         all_results.extend(res)
         insert_rows(conn, rows)
 
@@ -392,7 +666,7 @@ def main():
     parser.add_argument(
         "--mode",
         choices=[MODE_PREFIX, MODE_REWRITE],
-        default=MODE_PREFIX,
+        default=MODE_REWRITE,
         help="Contextualization mode: 'prefix' (default) or 'rewrite'.",
     )
 

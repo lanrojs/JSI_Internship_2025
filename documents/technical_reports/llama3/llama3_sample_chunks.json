@@ -2,221 +2,236 @@
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_1",
-    "chunk": "1 Introduction Foundation models are general models of language, vision, speech, and/or other modalities that are designed to support a large variety of AI tasks. They form the basis of many modern AI systems. The development of modern foundation models consists of two main stages: (1) a pre-training stage in which the model is trained at massive scale using straightforward tasks such as next-word prediction or captioning and (2) a post-training stage in which the model is tuned"
+    "chunk": "Authors: Llama Team, Meta AI. Date: July 23, 2024. Paper title: The Llama 3 Herd of Models. Modern artificial intelligence (AI) systems are powered by foundation models. This paper presents a new set of foundation models, called Llama 3. It is a herd of language models that natively support multilinguality, coding, reasoning, and tool usage. Our largest model is a dense Transformer with 405B parameters and a context window of up to"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_2",
-    "chunk": "prediction or captioning and (2) a post-training stage in which the model is tuned to follow instructions, align with human preferences, and improve specific capabilities (for example, coding and reasoning). In this paper, we present a new set of foundation models for language, called Llama 3. The Llama 3 Herd of models natively supports multilinguality, coding, reasoning, and tool usage. Our largest model is dense Transformer with 405B parameters, processing information in"
+    "chunk": "usage. Our largest model is a dense Transformer with 405B parameters and a context window of up to 128K tokens. This paper presents an extensive empirical evaluation of Llama 3. We find that Llama 3 delivers comparable quality to leading language models such as GPT-4 on a plethora of tasks. We publicly release Llama 3, including pre-trained and post-trained versions of the 405B parameter language model and our Llama Guard 3 model for input and output"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_3",
-    "chunk": "reasoning, and tool usage. Our largest model is dense Transformer with 405B parameters, processing information in a context window of up to 128K tokens. Each member of the herd is listed in Table 1. All the results presented in this paper are for the Llama 3.1 models, which we will refer to as Llama 3 throughout for brevity. We believe there are three key levers in the development of high-quality foundation models: data, scale, and managing"
+    "chunk": "post-trained versions of the 405B parameter language model and our Llama Guard 3 model for input and output safety. The paper also presents the results of experiments in which we integrate image, video, and speech capabilities into Llama 3 via a compositional approach. We observe this approach performs competitively with the state-of-the-art on image, video, and speech recognition tasks. The resulting models are not yet being broadly released as they are still under development. 1 Introduction Foundation models are"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_4",
-    "chunk": "three key levers in the development of high-quality foundation models: data, scale, and managing complexity. We seek to optimize for these three levers in our development process: • Data. Compared to prior versions of Llama (Touvron et al., 2023a,b), we improved both the quantity and quality of the data we use for pre-training and post-training. These improvements include the development of more careful pre-processing and curation pipelines"
+    "chunk": "resulting models are not yet being broadly released as they are still under development. 1 Introduction Foundation models are general models of language, vision, speech, and/or other modalities that are designed to support a large variety of AI tasks. They form the basis of many modern AI systems. The development of modern foundation models consists of two main stages: (1) a pre-training stage in which the model is trained at massive scale using straightforward tasks such as next-word prediction or captioning"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_5",
-    "chunk": "post-training. These improvements include the development of more careful pre-processing and curation pipelines for pre-training data and the development of more rigorous quality assurance and filtering approaches for post-training data. We pre-train Llama 3 on a corpus of about 15T multilingual tokens, compared to 1.8T tokens for Llama 2. • Scale. We train a model at far larger scale than previous Llama models: our flagship language model was pre-trained"
+    "chunk": "the model is trained at massive scale using straightforward tasks such as next-word prediction or captioning and (2) a post-training stage in which the model is tuned to follow instructions, align with human preferences, and improve specific capabilities (for example, coding and reasoning). In this paper, we present a new set of foundation models for language, called Llama 3. The Llama 3 Herd of models natively supports multilinguality, coding, reasoning, and tool usage."
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_6",
-    "chunk": "a model at far larger scale than previous Llama models: our flagship language model was pre-trained using 3.8 × 1025 FLOPs, almost 50× more than the largest version of Llama 2. Specifically, we pre-trained a flagship model with 405B trainable parameters on 15.6T text tokens. As expected per 1 arXiv:2407.21783v3 [cs.AI] 23 Nov 2024 Finetuned Multilingual Long context"
+    "chunk": "3 Herd of models natively supports multilinguality, coding, reasoning, and tool usage. Our largest model is dense Transformer with 405B parameters, processing information in a context window of up to 128K tokens. Each member of the herd is listed in Table 1. All the results presented in this paper are for the Llama 3.1 models, which we will refer to as Llama 3 throughout for brevity. We believe there are three key levers in the development"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_7",
-    "chunk": "arXiv:2407.21783v3 [cs.AI] 23 Nov 2024 Finetuned Multilingual Long context Tool use Release Llama 3 8B ✗ ✗ 1 ✗ ✗ April 2024 Llama 3 8B Instruct ✓ ✗ ✗ ✗ April 2024 Llama 3 70B ✗ ✗ 1 ✗ ✗ April 2024 Llama 3 70B Instruct ✓ ✗ ✗ ✗ April 2024 Llama 3.1 8B ✗ ✓ ✓ ✗ July 2024"
+    "chunk": "Llama 3 throughout for brevity. We believe there are three key levers in the development of high-quality foundation models: data, scale, and managing complexity. We seek to optimize for these three levers in our development process: • Data. Compared to prior versions of Llama (Touvron et al., 2023a,b), we improved both the quantity and quality of the data we use for pre-training and post-training. These improvements include"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_8",
-    "chunk": "April 2024 Llama 3.1 8B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 8B Instruct ✓ ✓ ✓ ✓ July 2024 Llama 3.1 70B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 70B Instruct ✓ ✓ ✓ ✓ July 2024 Llama 3.1 405B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 405B Instruct ✓ ✓ ✓ ✓ July 2024 Table 1 Overview of the Llama"
+    "chunk": "quantity and quality of the data we use for pre-training and post-training. These improvements include the development of more careful pre-processing and curation pipelines for pre-training data and the development of more rigorous quality assurance and filtering approaches for post-training data. We pre-train Llama 3 on a corpus of about 15T multilingual tokens, compared to 1.8T tokens for Llama 2. • Scale. We train a model at far larger scale than"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_9",
-    "chunk": "better than compute-optimal models at the same inference budget. We use the flagship model to further improve the quality of those smaller models during post-training. • Managing complexity. We make design choices that seek to maximize our ability to scale the model development process. For example, we opt for a standard dense Transformer model architecture (Vaswani et al., 2017) with minor adaptations, rather than for a mixture-of-experts model (Shazeer et al., 2017) to"
+    "chunk": "[cs.AI] 23 Nov 2024 Finetuned Multilingual Long context Tool use Release Llama 3 8B ✗ ✗ 1 ✗ ✗ April 2024 Llama 3 8B Instruct ✓ ✗ ✗ ✗ April 2024 Llama 3 70B ✗ ✗ 1 ✗ ✗ April 2024 Llama 3 70B Instruct ✓ ✗ ✗ ✗ April 2024 Llama 3.1 8B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 8B Instruct ✓ ✓ ✓"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_10",
-    "chunk": "than for a mixture-of-experts model (Shazeer et al., 2017) to maximize training stability. Similarly, we adopt a relatively simple post-training procedure based on supervised finetuning (SFT), rejection sampling (RS), and direct preference optimization (DPO; Rafailov et al. (2023)) as opposed to more complex reinforcement learning algorithms (Ouyang et al., 2022; Schulman et al., 2017) that tend"
+    "chunk": "8B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 8B Instruct ✓ ✓ ✓ ✓ July 2024 Llama 3.1 70B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 70B Instruct ✓ ✓ ✓ ✓ July 2024 Llama 3.1 405B ✗ ✓ ✓ ✗ July 2024 Llama 3.1 405B Instruct ✓ ✓ ✓ ✓ July 2024 Table 1 Overview of the Llama 3 Herd of models. All results in"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_11",
-    "chunk": "(Ouyang et al., 2022; Schulman et al., 2017) that tend to be less stable and harder to scale. The result of our work is Llama 3: a herd of three multilingual1 language models with 8B, 70B, and 405B parameters. We evaluate the performance of Llama 3 on a plethora of benchmark datasets that span a wide range of language understanding tasks. In addition, we perform extensive human evaluations"
+    "chunk": "July 2024 Table 1 Overview of the Llama 3 Herd of models. All results in this paper are for the Llama 3.1 models. scaling laws for foundation models, our flagship model outperforms smaller models trained using the same procedure. While our scaling laws suggest our flagship model is an approximately compute-optimal size for our training budget, we also train our smaller models for much longer than is compute-optimal. The resulting models perform better than compute-optimal models at the same inference"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_12",
-    "chunk": "datasets that span a wide range of language understanding tasks. In addition, we perform extensive human evaluations that compare Llama 3 with competing models. An overview of the performance of the flagship Llama 3 model on key benchmarks is presented in Table 2. Our experimental evaluation suggests that our flagship model performs on par with leading language models such as GPT-4 (OpenAI, 2023a) across a variety of tasks, and is close to matching the"
+    "chunk": "than is compute-optimal. The resulting models perform better than compute-optimal models at the same inference budget. We use the flagship model to further improve the quality of those smaller models during post-training. • Managing complexity. We make design choices that seek to maximize our ability to scale the model development process. For example, we opt for a standard dense Transformer model architecture (Vaswani et al., 2017) with minor adaptations, rather than for a mixture-of-experts model"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_13",
-    "chunk": "(OpenAI, 2023a) across a variety of tasks, and is close to matching the state-of-the-art. Our smaller models are best-in-class, outperforming alternative models with similar numbers of parameters (Bai et al., 2023; Jiang et al., 2023). Llama 3 also delivers a much better balance between helpfulness and harmlessness than its predecessor (Touvron et al., 2023b). We present"
+    "chunk": "et al., 2017) with minor adaptations, rather than for a mixture-of-experts model (Shazeer et al., 2017) to maximize training stability. Similarly, we adopt a relatively simple post-training procedure based on supervised finetuning (SFT), rejection sampling (RS), and direct preference optimization (DPO; Rafailov et al. (2023)) as opposed to more complex reinforcement learning algorithms (Ouyang et al., 2022;"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_14",
-    "chunk": "harmlessness than its predecessor (Touvron et al., 2023b). We present a detailed analysis of the safety of Llama 3 in Section 5.4. We are publicly releasing all three Llama 3 models under an updated version of the Llama 3 Community License; see https://llama.meta.com. This includes pre-trained and post-trained versions of our 405B parameter language model and a new version of our Llama Guard model (Inan"
+    "chunk": "language understanding tasks. In addition, we perform extensive human evaluations that compare Llama 3 with competing models. An overview of the performance of the flagship Llama 3 model on key benchmarks is presented in Table 2. Our experimental evaluation suggests that our flagship model performs on par with leading language models such as GPT-4 (OpenAI, 2023a) across a variety of tasks, and is close to matching the state-of-the-art. Our smaller models are"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_15",
-    "chunk": "of our 405B parameter language model and a new version of our Llama Guard model (Inan et al., 2023) for input and output safety. We hope that the open release of a flagship model will spur a wave of innovation in the research community, and accelerate a responsible path towards the development of artificial general intelligence (AGI). As part of the Llama 3 development process we also develop multimodal extensions to the models, enabling image recognition, video recognition, and speech"
+    "chunk": "tasks, and is close to matching the state-of-the-art. Our smaller models are best-in-class, outperforming alternative models with similar numbers of parameters (Bai et al., 2023; Jiang et al., 2023). Llama 3 also delivers a much better balance between helpfulness and harmlessness than its predecessor (Touvron et al., 2023b). We present a detailed analysis of the safety of Llama 3 in Section"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_16",
-    "chunk": "we also develop multimodal extensions to the models, enabling image recognition, video recognition, and speech understanding capabilities. These models are still under active development and not yet ready for release. In addition to our language modeling results, the paper presents results of our initial experiments with those multimodal models. 1The Llama 3 8B and 70B were pre-trained on multilingual data but were intended for use in English at the time. 2 Category Benchmark Llama 3 8B Gemma"
+    "chunk": "al., 2023b). We present a detailed analysis of the safety of Llama 3 in Section 5.4. We are publicly releasing all three Llama 3 models under an updated version of the Llama 3 Community License; see https://llama.meta.com. This includes pre-trained and post-trained versions of our 405B parameter language model and a new version of our Llama Guard model (Inan et al., 2023) for input and"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_17",
-    "chunk": "were intended for use in English at the time. 2 Category Benchmark Llama 3 8B Gemma 2 9B Mistral 7B Llama 3 70B Mixtral 8x22B GPT 3.5 Turbo Llama 3 405B Nemotron 4 340B GPT-4 (0125) GPT-4o Claude 3.5 Sonnet General MMLU (5-shot) 69.4 72.3 61.1 83.6 76.9 70.7"
+    "chunk": "version of our Llama Guard model (Inan et al., 2023) for input and output safety. We hope that the open release of a flagship model will spur a wave of innovation in the research community, and accelerate a responsible path towards the development of artificial general intelligence (AGI). As part of the Llama 3 development process we also develop multimodal extensions to the models, enabling image recognition, video recognition, and speech understanding capabilities. These models are still under active development"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_18",
-    "chunk": "The model architecture of Llama 3 is illustrated in Figure 1. The development of our Llama 3 language models comprises two main stages: • Language model pre-training. We start by converting a large, multilingual text corpus to discrete tokens and pre-training a large language model (LLM) on the resulting data to perform next-token prediction. In the language model pre-training stage, the model learns the structure of language and obtains large amounts of knowledge about the world from"
+    "chunk": "models, enabling image recognition, video recognition, and speech understanding capabilities. These models are still under active development and not yet ready for release. In addition to our language modeling results, the paper presents results of our initial experiments with those multimodal models. 1The Llama 3 8B and 70B were pre-trained on multilingual data but were intended for use in English at the time. 2 Category Benchmark Llama 3 8B Gemma 2 9B Mistral 7B Llama"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_19",
-    "chunk": "stage, the model learns the structure of language and obtains large amounts of knowledge about the world from the text it is \"reading\". To do this effectively, pre-training is performed at massive scale: we pre-train a model with 405B parameters on 15.6T tokens using a context window of 8K tokens. This standard pre-training stage is followed by a continued pre-training stage that increases the supported context window to 128K tokens. See Section 3 for"
+    "chunk": "time. 2 Category Benchmark Llama 3 8B Gemma 2 9B Mistral 7B Llama 3 70B Mixtral 8x22B GPT 3.5 Turbo Llama 3 405B Nemotron 4 340B GPT-4 (0125) GPT-4o Claude 3.5 Sonnet General MMLU (5-shot) 69.4 72.3 61.1 83.6 76.9 70.7 87.3 82.6"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_20",
-    "chunk": "pre-training stage that increases the supported context window to 128K tokens. See Section 3 for details. • Language model post-training. The pre-trained language model has a rich understanding of language but it does not yet follow instructions or behave in the way we would expect an assistant to. We align the model with human feedback in several rounds, each of which involves supervised finetuning (SFT) on instruction tuning data and Direct Preference Optimization (DPO; Rafailov et"
+    "chunk": "InfiniteBench/En.MC 65.1 - - 78.2 - - 83.4 - 72.1 82.5 - NIH/Multi-needle 98.8 - - 97.5 - - 98.1 - 100.0 100.0 90.8 Multilingual MGSM (0-shot, CoT) 68.9 53.2 29.9 86.9 71.1 51.4 91.6 - 85.9 90.5 91.6"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_21",
-    "chunk": "(SFT) on instruction tuning data and Direct Preference Optimization (DPO; Rafailov et al., 2024). At this post-training2 stage, we also integrate new capabilities, such as tool-use, and observe strong improvements in other areas, such as coding and reasoning. See Section 4 for details. Finally, safety mitigations are also incorporated into the model at the post-training stage, the details of which are described in Section 5.4. The resulting"
+    "chunk": "CoT. ♢Results obtained using zero-shot prompting. 2 General Overview The model architecture of Llama 3 is illustrated in Figure 1. The development of our Llama 3 language models comprises two main stages: • Language model pre-training. We start by converting a large, multilingual text corpus to discrete tokens and pre-training a large language model (LLM) on the resulting data to perform next-token prediction. In the language model pre-training stage, the model learns the structure"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_22",
-    "chunk": "the post-training stage, the details of which are described in Section 5.4. The resulting models have a rich set of capabilities. They can answer questions in at least eight languages, write high-quality code, solve complex reasoning problems, and use tools out-of-the-box or in a zero-shot way. We also perform experiments in which we add image, video, and speech capabilities to Llama 3 using a compositional approach. The approach we study comprises the three additional"
+    "chunk": "perform next-token prediction. In the language model pre-training stage, the model learns the structure of language and obtains large amounts of knowledge about the world from the text it is \"reading\". To do this effectively, pre-training is performed at massive scale: we pre-train a model with 405B parameters on 15.6T tokens using a context window of 8K tokens. This standard pre-training stage is followed by a continued pre-training stage that increases the"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_23",
-    "chunk": "speech capabilities to Llama 3 using a compositional approach. The approach we study comprises the three additional stages illustrated in Figure 28: • Multi-modal encoder pre-training. We train separate encoders for images and speech. We train our image encoder on large amounts of image-text pairs. This teaches the model the relation between visual content and the description of that content in natural language. Our speech encoder is trained using a 2 In this paper, we use"
+    "chunk": "tokens. This standard pre-training stage is followed by a continued pre-training stage that increases the supported context window to 128K tokens. See Section 3 for details. • Language model post-training. The pre-trained language model has a rich understanding of language but it does not yet follow instructions or behave in the way we would expect an assistant to. We align the model with human feedback in several rounds, each of which involves supervised finetuning (SFT) on instruction tuning"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_24",
-    "chunk": "in natural language. Our speech encoder is trained using a 2 In this paper, we use the term \"post-training\" to refer to any model training that happens outside of pre-training. 3 Figure 1 Illustration of the overall architecture and training of Llama 3. Llama 3 is a Transformer language model trained to predict the next token of a textual sequence. See text for details. self-supervised approach that masks out parts of the speech inputs and tries to reconstruct the"
+    "chunk": "feedback in several rounds, each of which involves supervised finetuning (SFT) on instruction tuning data and Direct Preference Optimization (DPO; Rafailov et al., 2024). At this post-training2 stage, we also integrate new capabilities, such as tool-use, and observe strong improvements in other areas, such as coding and reasoning. See Section 4 for details. Finally, safety mitigations are also incorporated into the model at the post-training stage, the"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_25",
-    "chunk": "details. self-supervised approach that masks out parts of the speech inputs and tries to reconstruct the masked out parts via a discrete-token representation. As a result, the model learns the structure of speech signals. See Section 7 for details on the image encoder and Section 8 for details on the speech encoder. • Vision adapter training. We train an adapter that integrates the pre-trained image encoder into the pre-trained language model. The adapter"
+    "chunk": "Finally, safety mitigations are also incorporated into the model at the post-training stage, the details of which are described in Section 5.4. The resulting models have a rich set of capabilities. They can answer questions in at least eight languages, write high-quality code, solve complex reasoning problems, and use tools out-of-the-box or in a zero-shot way. We also perform experiments in which we add image, video, and speech capabilities to Llama 3 using"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_26",
-    "chunk": "integrates the pre-trained image encoder into the pre-trained language model. The adapter consists of a series of cross-attention layers that feed imageencoder representations into the language model. The adapter is trained on text-image pairs. This aligns the image representations with the language representations. During adapter training, we also update the parameters of the image encoder but we intentionally do not update the language-model parameters. We also train a video adapter on"
+    "chunk": "We also perform experiments in which we add image, video, and speech capabilities to Llama 3 using a compositional approach. The approach we study comprises the three additional stages illustrated in Figure 28: • Multi-modal encoder pre-training. We train separate encoders for images and speech. We train our image encoder on large amounts of image-text pairs. This teaches the model the relation between visual content and the description of that content in natural language. Our speech"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_27",
-    "chunk": "but we intentionally do not update the language-model parameters. We also train a video adapter on top of the image adapter on paired video-text data. This enables the model to aggregate information across frames. See Section 7 for details. • Speech adapter training. Finally, we integrate the speech encoder into the model via an adapter that converts speech encodings into token representations that can be fed directly into the finetuned language model. The parameters of the adapter and"
+    "chunk": "teaches the model the relation between visual content and the description of that content in natural language. Our speech encoder is trained using a 2 In this paper, we use the term \"post-training\" to refer to any model training that happens outside of pre-training. 3 Figure 1 Illustration of the overall architecture and training of Llama 3. Llama 3 is a Transformer language model trained to predict the next token of a textual sequence. See text for details. self-supervised approach that"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_28",
-    "chunk": "that can be fed directly into the finetuned language model. The parameters of the adapter and encoder are jointly updated in a supervised finetuning stage to enable high-quality speech understanding. We do not change the language model during speech adapter training. We also integrate a text-to-speech system. See Section 8 for details. Our multimodal experiments lead to models that can recognize the content of images and videos, and support interaction via a speech interface. These models are"
+    "chunk": "to predict the next token of a textual sequence. See text for details. self-supervised approach that masks out parts of the speech inputs and tries to reconstruct the masked out parts via a discrete-token representation. As a result, the model learns the structure of speech signals. See Section 7 for details on the image encoder and Section 8 for details on the speech encoder. • Vision adapter training. We train an adapter that integrates the pre-trained image"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_29",
-    "chunk": "can recognize the content of images and videos, and support interaction via a speech interface. These models are still under development and not yet ready for release. 3 Pre-Training Language model pre-training involves: (1) the curation and filtering of a large-scale training corpus, (2) the development of a model architecture and corresponding scaling laws for determining model size, (3) the development of techniques for efficient pre-training at large scale, and (4) the development of a"
+    "chunk": "encoder. • Vision adapter training. We train an adapter that integrates the pre-trained image encoder into the pre-trained language model. The adapter consists of a series of cross-attention layers that feed imageencoder representations into the language model. The adapter is trained on text-image pairs. This aligns the image representations with the language representations. During adapter training, we also update the parameters of the image encoder but we intentionally do"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_30",
-    "chunk": "development of techniques for efficient pre-training at large scale, and (4) the development of a pre-training recipe. We present each of these components separately below. 3.1 Pre-Training Data We create our dataset for language model pre-training from a variety of data sources containing knowledge until the end of 2023. We apply several de-duplication methods and data cleaning mechanisms on each data source to obtain high-quality tokens. We remove domains that contain large amounts of personally"
+    "chunk": "During adapter training, we also update the parameters of the image encoder but we intentionally do not update the language-model parameters. We also train a video adapter on top of the image adapter on paired video-text data. This enables the model to aggregate information across frames. See Section 7 for details. • Speech adapter training. Finally, we integrate the speech encoder into the model via an adapter that converts speech encodings into token representations that can be fed directly"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_31",
-    "chunk": "each data source to obtain high-quality tokens. We remove domains that contain large amounts of personally identifiable information (PII), and domains with known adult content. 3.1.1 Web Data Curation Much of the data we utilize is obtained from the web and we describe our cleaning process below. PII and safety filtering. Among other mitigations, we implement filters designed to remove data from websites are likely to contain unsafe content or high volumes of PII, domains that have been"
+    "chunk": "into the model via an adapter that converts speech encodings into token representations that can be fed directly into the finetuned language model. The parameters of the adapter and encoder are jointly updated in a supervised finetuning stage to enable high-quality speech understanding. We do not change the language model during speech adapter training. We also integrate a text-to-speech system. See Section 8 for details. Our multimodal experiments lead to models that can recognize the content of"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_32",
-    "chunk": "data from websites are likely to contain unsafe content or high volumes of PII, domains that have been ranked as harmful according to a variety of Meta safety standards, and domains that are known to contain adult content. 4 Text extraction and cleaning. We process the raw HTML content for non-truncated web documents to extract high-quality diverse text. To do so, we build a custom parser that extracts the HTML content and optimizes for precision in boilerplate removal and content recall. We evaluate our"
+    "chunk": "See Section 8 for details. Our multimodal experiments lead to models that can recognize the content of images and videos, and support interaction via a speech interface. These models are still under development and not yet ready for release. 3 Pre-Training Language model pre-training involves: (1) the curation and filtering of a large-scale training corpus, (2) the development of a model architecture and corresponding scaling laws for determining model size, (3) the development of techniques for efficient"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_33",
-    "chunk": "the HTML content and optimizes for precision in boilerplate removal and content recall. We evaluate our parser's quality in human evaluations, comparing it with popular third-party HTML parsers that optimize for article-like content, and found it to perform favorably. We carefully process HTML pages with mathematics and code content to preserve the structure of that content. We maintain the image alt attribute text since mathematical content is often represented as pre-rendered images where the math is also provided"
+    "chunk": "model architecture and corresponding scaling laws for determining model size, (3) the development of techniques for efficient pre-training at large scale, and (4) the development of a pre-training recipe. We present each of these components separately below. 3.1 Pre-Training Data We create our dataset for language model pre-training from a variety of data sources containing knowledge until the end of 2023. We apply several de-duplication methods and data cleaning mechanisms on each data source to obtain"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_34",
-    "chunk": "alt attribute text since mathematical content is often represented as pre-rendered images where the math is also provided in the alt attribute. We experimentally evaluate different cleaning configurations. We find markdown is harmful to the performance of a model that is primarily trained on web data compared to plain text, so we remove all markdown markers. De-duplication. We apply several rounds of de-duplication at the URL, document, and line level: • URL-level de-duplication."
+    "chunk": "2023. We apply several de-duplication methods and data cleaning mechanisms on each data source to obtain high-quality tokens. We remove domains that contain large amounts of personally identifiable information (PII), and domains with known adult content. 3.1.1 Web Data Curation Much of the data we utilize is obtained from the web and we describe our cleaning process below. PII and safety filtering. Among other mitigations, we implement filters designed to remove data from websites are"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_35",
-    "chunk": "the URL, document, and line level: • URL-level de-duplication. We perform URL-level de-duplication across the entire dataset. We keep the most recent version for pages corresponding to each URL. • Document-level de-duplication. We perform global MinHash (Broder, 1997) de-duplication across the entire dataset to remove near duplicate documents. • Line-level de-duplication. We perform aggressive line-level"
+    "chunk": "and safety filtering. Among other mitigations, we implement filters designed to remove data from websites are likely to contain unsafe content or high volumes of PII, domains that have been ranked as harmful according to a variety of Meta safety standards, and domains that are known to contain adult content. 4 Text extraction and cleaning. We process the raw HTML content for non-truncated web documents to extract high-quality diverse text. To do so, we build a custom parser that extracts the HTML content and"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_36",
-    "chunk": "remove near duplicate documents. • Line-level de-duplication. We perform aggressive line-level de-duplication similar to ccNet (Wenzek et al., 2019). We remove lines that appeared more than 6 times in each bucket of 30M documents. Although our manual qualitative analysis showed that the line-level de-duplication removes not only leftover boilerplate from various websites such as navigation menus, cookie warnings, but also frequent high-quality text, our"
+    "chunk": "high-quality diverse text. To do so, we build a custom parser that extracts the HTML content and optimizes for precision in boilerplate removal and content recall. We evaluate our parser's quality in human evaluations, comparing it with popular third-party HTML parsers that optimize for article-like content, and found it to perform favorably. We carefully process HTML pages with mathematics and code content to preserve the structure of that content. We maintain the image alt attribute"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_37",
-    "chunk": "various websites such as navigation menus, cookie warnings, but also frequent high-quality text, our empirical evaluations showed strong improvements. Heuristic filtering. We develop heuristics to remove additional low-quality documents, outliers, and documents with excessive repetitions. Some examples of heuristics include: • We use duplicated n-gram coverage ratio (Rae et al., 2021) to remove lines that consist of repeated content such as logging or error messages. Those"
+    "chunk": "pages with mathematics and code content to preserve the structure of that content. We maintain the image alt attribute text since mathematical content is often represented as pre-rendered images where the math is also provided in the alt attribute. We experimentally evaluate different cleaning configurations. We find markdown is harmful to the performance of a model that is primarily trained on web data compared to plain text, so we remove all markdown markers. De-duplication. We apply several rounds of de-duplication at the"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_38",
-    "chunk": "al., 2021) to remove lines that consist of repeated content such as logging or error messages. Those lines could be very long and unique, hence cannot be filtered by line-dedup. • We use \"dirty word\" counting (Raffel et al., 2020) to filter out adult websites that are not covered by domain block lists. • We use a token-distribution Kullback-Leibler divergence to filter out documents containing excessive numbers of outlier tokens compared"
+    "chunk": "markdown markers. De-duplication. We apply several rounds of de-duplication at the URL, document, and line level: • URL-level de-duplication. We perform URL-level de-duplication across the entire dataset. We keep the most recent version for pages corresponding to each URL. • Document-level de-duplication. We perform global MinHash (Broder, 1997) de-duplication across the entire dataset to remove"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_39",
-    "chunk": "Kullback-Leibler divergence to filter out documents containing excessive numbers of outlier tokens compared to the training corpus distribution. Model-based quality filtering. Further, we experiment with applying various model-based quality classifiers to sub-select high-quality tokens. These include using fast classifiers such as fasttext (Joulin et al., 2017) trained to recognize if a given text would be referenced by Wikipedia (Touvron et al., 2023a),"
+    "chunk": "global MinHash (Broder, 1997) de-duplication across the entire dataset to remove near duplicate documents. • Line-level de-duplication. We perform aggressive line-level de-duplication similar to ccNet (Wenzek et al., 2019). We remove lines that appeared more than 6 times in each bucket of 30M documents. Although our manual qualitative analysis showed that the line-level de-duplication removes not only leftover boilerplate from various"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_40",
-    "chunk": "given text would be referenced by Wikipedia (Touvron et al., 2023a), as well as more compute-intensive Roberta-based classifiers (Liu et al., 2019a) trained on Llama 2 predictions. To train a quality classifier based on Llama 2, we create a training set of cleaned web documents, describe the quality requirements, and instruct Llama 2's chat model to determine if the documents meets these requirements. We use"
+    "chunk": "analysis showed that the line-level de-duplication removes not only leftover boilerplate from various websites such as navigation menus, cookie warnings, but also frequent high-quality text, our empirical evaluations showed strong improvements. Heuristic filtering. We develop heuristics to remove additional low-quality documents, outliers, and documents with excessive repetitions. Some examples of heuristics include: • We use duplicated n-gram coverage ratio (Rae et"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_41",
-    "chunk": "instruct Llama 2's chat model to determine if the documents meets these requirements. We use DistilRoberta (Sanh et al., 2019) to generate quality scores for each document for efficiency reasons. We experimentally evaluate the efficacy of various quality filtering configurations. Code and reasoning data. Similar to DeepSeek-AI et al. (2024), we build domain-specific pipelines that extract code and math-relevant web pages. Specifically, both the code and"
+    "chunk": "of heuristics include: • We use duplicated n-gram coverage ratio (Rae et al., 2021) to remove lines that consist of repeated content such as logging or error messages. Those lines could be very long and unique, hence cannot be filtered by line-dedup. • We use \"dirty word\" counting (Raffel et al., 2020) to filter out adult websites that are not covered by domain block lists. • We use a token-distribution"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_42",
-    "chunk": "domain-specific pipelines that extract code and math-relevant web pages. Specifically, both the code and reasoning classifiers are DistilRoberta models trained on web data annotated by Llama 2. Unlike the general quality classifier mentioned above, we conduct prompt tuning to target web pages containing math deduction, reasoning in STEM areas and code interleaved with natural language. Since the token distribution of code and math is substantially different than that of natural language, these pipelines implement"
+    "chunk": "filter out adult websites that are not covered by domain block lists. • We use a token-distribution Kullback-Leibler divergence to filter out documents containing excessive numbers of outlier tokens compared to the training corpus distribution. Model-based quality filtering. Further, we experiment with applying various model-based quality classifiers to sub-select high-quality tokens. These include using fast classifiers such as fasttext (Joulin et al., 2017) trained to recognize if a"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_43",
-    "chunk": "the token distribution of code and math is substantially different than that of natural language, these pipelines implement domain-specific HTML extraction, customized text features and heuristics for filtering. Multilingual data. Similar to our processing pipelines for English described above, we implement filters to remove data from websites that are likely to contain PII or unsafe content. Our multilingual text processing pipeline has several unique features: • We use a fasttext-based language identification model to categorize documents"
+    "chunk": "classifiers such as fasttext (Joulin et al., 2017) trained to recognize if a given text would be referenced by Wikipedia (Touvron et al., 2023a), as well as more compute-intensive Roberta-based classifiers (Liu et al., 2019a) trained on Llama 2 predictions. To train a quality classifier based on Llama 2, we create a training set of cleaned web documents, describe the quality requirements, and instruct Llama"
   },
   {
     "doc": "llama3_sample",
     "id": "llama3_sample_44",
-    "chunk": "several unique features: • We use a fasttext-based language identification model to categorize documents into 176 languages. • We perform document-level and line-level de-duplication within data for each language."
+    "chunk": "we create a training set of cleaned web documents, describe the quality requirements, and instruct Llama 2's chat model to determine if the documents meets these requirements. We use DistilRoberta (Sanh et al., 2019) to generate quality scores for each document for efficiency reasons. We experimentally evaluate the efficacy of various quality filtering configurations. Code and reasoning data. Similar to DeepSeek-AI et al. (2024), we build domain-specific pipelines"
+  },
+  {
+    "doc": "llama3_sample",
+    "id": "llama3_sample_45",
+    "chunk": "DeepSeek-AI et al. (2024), we build domain-specific pipelines that extract code and math-relevant web pages. Specifically, both the code and reasoning classifiers are DistilRoberta models trained on web data annotated by Llama 2. Unlike the general quality classifier mentioned above, we conduct prompt tuning to target web pages containing math deduction, reasoning in STEM areas and code interleaved with natural language. Since the token distribution of code and"
+  },
+  {
+    "doc": "llama3_sample",
+    "id": "llama3_sample_46",
+    "chunk": "reasoning in STEM areas and code interleaved with natural language. Since the token distribution of code and math is substantially different than that of natural language, these pipelines implement domain-specific HTML extraction, customized text features and heuristics for filtering. Multilingual data. Similar to our processing pipelines for English described above, we implement filters to remove data from websites that are likely to contain PII or unsafe content. Our multilingual text processing pipeline has several unique features: • We"
+  },
+  {
+    "doc": "llama3_sample",
+    "id": "llama3_sample_47",
+    "chunk": "PII or unsafe content. Our multilingual text processing pipeline has several unique features: • We use a fasttext-based language identification model to categorize documents into 176 languages. • We perform document-level and line-level de-duplication within data for each language."
   }
 ]

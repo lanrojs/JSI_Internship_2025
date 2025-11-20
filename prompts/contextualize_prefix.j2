@@ -1,31 +1,36 @@
-Write a concise contextual note (1–3 sentences) explaining the document section and topic
-that the passage comes from. You must EXPLICITLY name the document, the TYPE of document (technical report, SEC filing,
-EU regulation etc.) and the section/subsection where the chunk is situated within the
-document, when that information is available in the context.
+Write a concise PREFIX (1–3 sentences) that explains where the CURRENT PASSAGE is located in its document, its broad topic
+and supply missing details that can be resolved from the context you are given.
 
-Base your note only on the supplied context. Do not infer or speculate beyond what is clearly implied. Do not restate or summarize the passage itself.
+RULES:
+- If the document’s name or type is explicitly stated in the context, mention it.
+- If the section, article, paragraph, or subsection is explicitly stated in the context, mention it.
+- Describe only the broader topic or purpose of the CURRENT PASSAGE and its provided context, without restating, paraphrasing, or summarizing the CURRENT PASSAGE itself.
+- Use only information explicitly present in the LOCAL, RETRIEVED, or SYSTEM context to enrich the ORIGINAL PASSAGE with details it might be lacking.
+- Do NOT guess or supply external knowledge.
+- Clarify vague references only when the referent is unambiguously identified from the provided context.
+- Define terms that are specific to the field or area of the document if you think an average reader would not understand them.
+- Return only the PREFIX as plain text.
 
-Explain any UNKNOWN entities, people or objects that are PRESENT ONLY in the CURRENT PASSAGE,
-but require knowledge of already processed content (e.g. "that article", "those people",
-"that report" etc.), using the context that is given to you.
+-------------------- LOCAL CONTEXT (NEIGHBOURING PASSAGES) --------------------
+<LOCAL_CONTEXT_BEFORE_START>
+{{ local_context_before }}
+<LOCAL_CONTEXT_BEFORE_END>
 
-Define technical terms only if they are SPECIFIC to the field or area of the document, and
-would not be understood by an ordinary reader.
+<LOCAL_CONTEXT_AFTER_START>
+{{ local_context_after }}
+<LOCAL_CONTEXT_AFTER_END>
 
-Every contextualized passage must be SELF-CONTAINED, so that anyone can understand the
-setting and topic of the passage without having read the whole document.
-
--------------------- LOCAL RAW CONTEXT (NEIGHBORING PASSAGES - 2 BEFORE, 1 AFTER) --------------------
-<LOCAL_CONTEXT_START>
-{{ local_context }}
-<LOCAL_CONTEXT_END>
-
--------------------- RETRIEVED CONTEXT (PASSAGES SELECTED BY SIMILARITY SEARCH) --------------------
+-------------------- RETRIEVED CONTEXT (MOST RELEVANT PASSAGES BASED ON SIMILARITY SEARCH) --------------------
 <RETRIEVED_CONTEXT_START>
 {{ retrieved_context }}
 <RETRIEVED_CONTEXT_END>
 
--------------------- CURRENT PASSAGE (PASSAGE TO BE CONTEXTUALIZED) --------------------
+-------------------- SYSTEM CONTEXT (MOST RELEVANT PASSAGES FROM EXTERNAL DOCUMENTS) --------------------
+<SYSTEM_CONTEXT_START>
+{{ system_context }}
+<SYSTEM_CONTEXT_END>
+
+-------------------- CURRENT PASSAGE (PASSAGE WE WANT TO CONTEXTUALIZE) --------------------
 <CURRENT_PASSAGE_START>
 {{ current_passage }}
 <CURRENT_PASSAGE_END>

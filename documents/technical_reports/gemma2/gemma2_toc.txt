@@ -1,0 +1,30 @@
+1. Introduction
+
+2. Model Architecture
+
+3. Pre-training
+3.1 Training Data
+3.2 Knowledge Distillation
+
+4. Post-training Recipe
+
+5. Ablations
+
+6. Evaluation
+6.1 Pre-training Evaluations
+6.2 Post-training Evaluations
+
+7. Memorization and Privacy
+
+8. Responsibility, Safety, Security
+8.1 Safety policies and train-time mitigations
+8.2 External benchmark evaluations
+8.3 Assurance Evaluations
+8.4 Offensive cyber-security
+8.5 Responsible open models
+
+9. Discussion and Conclusion
+
+Contributions and Acknowledgments
+
+References

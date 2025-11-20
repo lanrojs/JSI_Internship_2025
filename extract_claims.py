@@ -295,9 +295,10 @@ def extract_claims_from_file(input_path: Union[str, Path], mode: str = MODE_PREF
             # Chunk identifier (prefer "id", fallback to "chunk_id")
             cid = str(obj.get("id") or obj.get("chunk_id") or "")
 
-            # Original chunk and contextualized chunk from the input
+            # Original chunk and contextual fields from the input
             original_chunk = (obj.get("chunk") or "").strip()
             contextualized_chunk = (obj.get("contextualized_chunk") or "").strip()
+            context_prefix = (obj.get("context_prefix") or "").strip()
 
             # If we have absolutely no text, count as empty and continue
             if not original_chunk and not contextualized_chunk:
@@ -310,14 +311,32 @@ def extract_claims_from_file(input_path: Union[str, Path], mode: str = MODE_PREF
                 continue
 
             # --- Render the prompt with Jinja2 ---
-            prompt = render_prompt(
-                template_name,
-                mode=mode,
-                doc=doc,
-                chunk_id=cid,
-                original_chunk=original_chunk,
-                contextualized_chunk=contextualized_chunk,
-            )
+            if mode == MODE_PREFIX:
+                # claims grounded in ORIGINAL_CHUNK, context_prefix as auxiliary context
+                prompt = render_prompt(
+                    template_name,
+                    mode=mode,
+                    doc=doc,
+                    chunk_id=cid,
+                    original_chunk=original_chunk,
+                    context_prefix=context_prefix,
+                )
+            else:
+                # rewrite mode: claims grounded in CONTEXTUALIZED_CHUNK
+                prompt = render_prompt(
+                    template_name,
+                    mode=mode,
+                    doc=doc,
+                    chunk_id=cid,
+                    original_chunk=original_chunk,
+                    contextualized_chunk=contextualized_chunk,
+                )
+
+            # DEBUG: show chunk + prompt
+            print("\n================ CHUNK DEBUG ================")
+            print("----- CLAIMS PROMPT -----")
+            print(prompt)
+            print("=============== END CHUNK DEBUG ===============\n")
 
             # --- Call Ollama model ---
             try:
@@ -338,8 +357,14 @@ def extract_claims_from_file(input_path: Union[str, Path], mode: str = MODE_PREF
                     )
                 continue
 
-            # --- Parse the model reply into a JSON array ---
+            # DEBUG: show raw LLM response
+            print("\n===== CLAIMS LLM RAW RESPONSE =====")
+            print(reply)
+            print("===== END CLAIMS LLM RAW RESPONSE =====\n")
+
+            # --- Parse + store claims as before ---
             arr = safe_json_array(reply)
+
 
             # --- Write out each valid claim as a JSONL record ---
             idx = 0  # per-chunk claim counter
@@ -426,7 +451,7 @@ def main() -> None:
     parser.add_argument(
         "--mode",
         choices=[MODE_PREFIX, MODE_REWRITE],
-        default=MODE_PREFIX,
+        default=MODE_REWRITE,
         help=(
             "Claim extraction mode:\n"
             "  prefix  - claims grounded in the raw chunk (default)\n"

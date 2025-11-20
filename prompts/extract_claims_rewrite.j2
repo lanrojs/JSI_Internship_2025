@@ -1,57 +1,41 @@
-You extract atomic factual claims from text.
+You are extracting atomic, factual claims from a passage of text.
 
-You get:
-- ORIGINAL_CHUNK: the original passage.
-- CONTEXTUALIZED_CHUNK: a self-contained, enriched version with extra context.
+You are given:
+- CONTEXTUALIZED_CHUNK — a self-contained rewritten version of the passage.
 
-GOAL
-- List factual or normative statements that are clearly stated in CONTEXTUALIZED_CHUNK.
-- Each statement becomes ONE atomic, self-contained claim.
+TASK (REWRITE MODE)
+- Identify factual or normative statements that are clearly expressed in the CONTEXTUALIZED_CHUNK.
+- Convert each statement into a single, self-contained ATOMIC claim.
 
-GROUNDING
-- Every claim must be fully supported by CONTEXTUALIZED_CHUNK.
-- Use ORIGINAL_CHUNK only to avoid misreading, not to add new information.
-- If you are not sure the claim is supported by CONTEXTUALIZED_CHUNK, SKIP it.
+RULES:
+- Every claim MUST be fully supported by the CONTEXTUALIZED_CHUNK alone.
+- Preserve the modality exactly as written (“may”, “must”, “shall”, “is required to”, etc.).
+- Do not strengthen or weaken obligations or permissions.
 
-MODAL VERBS
-- Keep the same modality as in CONTEXTUALIZED_CHUNK.
-- Do NOT change “may”, “might”, “can”, “could”, “should”, “must”, “shall”, “is required to”, “is prohibited from”, etc.
-- Do NOT add stronger or weaker obligation words that are not present.
-
-FOCUS
-- Prefer claims about:
-  - when something applies or does not apply,
-  - who or what is covered,
-  - rights, duties, obligations, prohibitions, permissions, limitations,
-  - concrete effects or consequences.
-- Avoid meta-statements like “this passage is from section X” unless explicitly presented as a factual statement you need.
-
-OUTPUT FORMAT
-Return ONLY a JSON array, e.g.:
+OUTPUT FORMAT  
+Return ONLY a JSON array:
 [
   {
     "claim_text": "...",
     "source_quote": "..."
-  },
-  ...
+  }
 ]
 
-claim_text:
-- One declarative sentence.
-- Self-contained (no “this”, “above”, “such provision” without saying what it is).
-- Faithful to wording, scope, and modality of CONTEXTUALIZED_CHUNK.
-- Do not merge multiple independent ideas into one.
+REQUIREMENTS
+- “claim_text” must be:
+  - one declarative sentence,
+  - self-contained and unambiguous,
+  - faithful to the meaning, scope, and modality of the CONTEXTUALIZED_CHUNK.
+- “source_quote” must be:
+  - a verbatim, contiguous substring of the CONTEXTUALIZED_CHUNK,
+  - the most specific supporting span.
 
-source_quote:
-- MUST be a verbatim, contiguous substring of CONTEXTUALIZED_CHUNK.
-- Copy exactly (same words and punctuation).
-- Choose the shortest span that directly supports the claim.
-- If you cannot find a substring, do not output that claim.
+DO NOT
+- Do not merge multiple independent ideas.
+- Do not add explanations or commentary.
+- Do not import any information not present in the CONTEXTUALIZED_CHUNK.
 
-Do NOT add explanations or commentary outside the JSON.
-
-ORIGINAL_CHUNK:
-"""{{ original_chunk }}"""
+Return only the JSON array.
 
 CONTEXTUALIZED_CHUNK:
 """{{ contextualized_chunk }}"""

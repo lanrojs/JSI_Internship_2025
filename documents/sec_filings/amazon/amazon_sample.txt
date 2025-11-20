@@ -1,4 +1,5 @@
-AMAZON.COM, INC.
+UNITED STATES SECURITIES AND EXCHANGE COMMISSION Washington, D.C. 20549 AMAZON.COM, INC.
+FORM 10-K For the Fiscal Year Ended December 31, 2024
 PART I Item 1. Business This Annual Report on Form 10-K and the documents incorporated herein by reference contain forward-looking statements based on expectations, estimates, and projections as of the date of this filing. Actual results and outcomes may differ materially from those expressed in forward-looking statements. See Item 1A of Part I - "Risk Factors." As used herein, "Amazon.com," "we," "our," and similar terms include Amazon.com, Inc. and its subsidiaries, unless the context indicates otherwise.
 General We seek to be Earth's most customer-centric company. We are guided by four principles: customer obsession rather than competitor focus, passion for invention, commitment to operational excellence, and long-term thinking. In each of our segments, we serve our primary customer sets, consisting of consumers, sellers, developers, enterprises, content creators, advertisers, and employees.
 We have organized our operations into three segments: North America, International, and Amazon Web Services ("AWS"). These segments reflect the way the Company evaluates its business performance and manages its operations.

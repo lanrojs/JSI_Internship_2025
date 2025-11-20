@@ -1,0 +1,117 @@
+Table of contents Chapter 1 General provisions Art. 1 AI Act Subject
+matter Art. 2 AI Act Scope Art. 3 AI Act Definitions Art. 4 AI Act AI
+literacy Chapter 2 Prohibited AI practices Art. 5 AI Act Prohibited AI
+Practices Chapter 3 High-risk AI systems Section 1 Classification of AI
+systems as high-risk Art. 6 AI Act Classification rules for high-risk AI
+systems Art. 7 AI Act Amendments to Annex III Section 2 Requirements for
+high-risk AI systems Art. 8 AI Act Compliance with the requirements Art.
+9 AI Act Risk management system Art. 10 AI Act Data and data governance
+Art. 11 AI Act Technical documentation Art. 12 AI Act Record-keeping
+Art. 13 AI Act Transparency and provision of information to deployers
+Art. 14 AI Act Human oversight Art. 15 AI Act Accuracy, robustness and
+cybersecurity Section 3 Obligations of providers and deployers of
+high-risk AI systems and other parties Art. 16 AI Act Obligations of
+providers of high-risk AI systems Art. 17 AI Act Quality management
+system Art. 18 AI Act Documentation keeping Art. 19 AI Act Automatically
+generated logs Art. 20 AI Act Corrective actions and duty of information
+Art. 21 AI Act Cooperation with competent authorities Art. 22 AI Act
+Authorised representatives of providers of high-risk AI systems Art. 23
+AI Act Obligations of importers Art. 24 AI Act Obligations of
+distributors Art. 25 AI Act Responsibilities along the AI value chain
+Art. 26 AI Act Obligations of deployers of high-risk AI systems Art. 27
+AI Act Fundamental rights impact assessment for high-risk AI systems
+Section 4 Notifying authorities and notified bodies Art. 28 AI Act
+Notifying authorities Art. 29 AI Act Application of a conformity
+assessment body for notification Art. 30 AI Act Notification procedure
+Art. 31 AI Act Requirements relating to notified bodies Art. 32 AI Act
+Presumption of conformity with requirements relating to notified bodies
+Art. 33 AI Act Subsidiaries of notified bodies and subcontracting Art.
+34 AI Act Operational obligations of notified bodies Art. 35 AI Act
+Identification numbers and lists of notified bodies Art. 36 AI Act
+Changes to notifications Art. 37 AI Act Challenge to the competence of
+notified bodies Art. 38 AI Act Coordination of notified bodies Art. 39
+AI Act Conformity assessment bodies of third countries Section 5
+Standards, conformity assessment, certificates, registration Art. 40 AI
+Act Harmonised standards and standardisation deliverables Art. 41 AI Act
+Common specifications Art. 42 AI Act Presumption of conformity with
+certain requirements Art. 43 AI Act Conformity assessment Art. 44 AI Act
+Certificates Art. 45 AI Act Information obligations of notified bodies
+Art. 46 AI Act Derogation from conformity assessment procedure Art. 47
+AI Act EU declaration of conformity Art. 48 AI Act CE marking Art. 49 AI
+Act Registration Chapter 4 Transparency obligations for providers and
+deployers of certain AI systems Art. 50 AI Act Transparency obligations
+for providers and deployers of certain AI systems Chapter 5
+General-purpose AI models Section 1 Classification rules Art. 51 AI Act
+Classification of general-purpose AI models as general-purpose AI models
+with systemic risk Art. 52 AI Act Procedure Section 2 Obligations for
+providers of general-purpose AI models Art. 53 AI Act Obligations for
+providers of general-purpose AI models Art. 54 AI Act Authorised
+representatives of providers of general-purpose AI models Section 3
+Obligations of providers of general-purpose AI models with systemic risk
+Art. 55 AI Act Obligations of providers of general-purpose AI models
+with systemic risk Section 4 Codes of practice Art. 56 AI Act Codes of
+practice Chapter 6 Measures in support of innovation Art. 57 AI Act AI
+regulatory sandboxes Art. 58 AI Act Detailed arrangements for, and
+functioning of, AI regulatory sandboxes Art. 59 AI Act Further
+processing of personal data for developing certain AI systems in the
+public interest in the AI regulatory sandbox Art. 60 AI Act Testing of
+high-risk AI systems in real world conditions outside AI regulatory
+sandboxes Art. 61 AI Act Informed consent to participate in testing in
+real world conditions outside AI regulatory sandboxes Art. 62 AI Act
+Measures for providers and deployers, in particular SMEs, including
+start-ups Art. 63 AI Act Derogations for specific operators Chapter 7
+Governance Section 1 Governance at Union level Art. 64 AI Act AI Office
+Art. 65 AI Act Establishment and structure of the European Artificial
+Intelligence Board Art. 66 AI Act Tasks of the Board Art. 67 AI Act
+Advisory forum Art. 68 AI Act Scientific panel of independent experts
+Art. 69 AI Act Access to the pool of experts by the Member States
+Section 2 National competent authorities Art. 70 AI Act Designation of
+national competent authorities and single points of contact Chapter 8 EU
+database for high-risk AI systems Art. 71 AI Act EU database for
+high-risk AI systems listed in Annex III Chapter 9 Post-market
+monitoring, information sharing and market surveillance Section 1
+Post-market monitoring Art. 72 AI Act Post-market monitoring by
+providers and post-market monitoring plan for high-risk AI systems
+Section 2 Sharing of information on serious incidents Art. 73 AI Act
+Reporting of serious incidents Section 3 Enforcement Art. 74 AI Act
+Market surveillance and control of AI systems in the Union market Art.
+75 AI Act Mutual assistance, market surveillance and control of
+general-purpose AI systems Art. 76 AI Act Supervision of testing in real
+world conditions by market surveillance authorities Art. 77 AI Act
+Powers of authorities protecting fundamental rights Art. 78 AI Act
+Confidentiality Art. 79 AI Act Procedure at national level for dealing
+with AI systems presenting a risk Art. 80 AI Act Procedure for dealing
+with AI systems classified by the provider as non-high-risk in
+application of Annex III Art. 81 AI Act Union safeguard procedure Art.
+82 AI Act Compliant AI systems which present a risk Art. 83 AI Act
+Formal non-compliance Art. 84 AI Act Union AI testing support structures
+Section 4 Remedies Art. 85 AI Act Right to lodge a complaint with a
+market surveillance authority Art. 86 AI Act Right to explanation of
+individual decision-making Art. 87 AI Act Reporting of infringements and
+protection of reporting persons Section 5 Supervision, investigation,
+enforcement and monitoring in respect of providers of general-purpose AI
+models Art. 88 AI Act Enforcement of the obligations of providers of
+general-purpose AI models Art. 89 AI Act Monitoring actions Art. 90 AI
+Act Alerts of systemic risks by the scientific panel Art. 91 AI Act
+Power to request documentation and information Art. 92 AI Act Power to
+conduct evaluations Art. 93 AI Act Power to request measures Art. 94 AI
+Act Procedural rights of economic operators of the general-purpose AI
+model Chapter 10 Codes of conduct and guidelines Art. 95 AI Act Codes of
+conduct for voluntary application of specific requirements Art. 96 AI
+Act Guidelines from the Commission on the implementation of this
+Regulation Chapter 11 Delegation of power and committee procedure Art.
+97 AI Act Exercise of the delegation Art. 98 AI Act Committee procedure
+Chapter 12 Penalties Art. 99 AI Act Penalties Art. 100 AI Act
+Administrative fines on Union institutions, bodies, offices and agencies
+Art. 101 AI Act Fines for providers of general-purpose AI models Chapter
+13 Final provisions Art. 102 AI Act Amendment to Regulation (EC) No
+300/2008 Art. 103 AI Act Amendment to Regulation (EU) No 167/2013 Art.
+104 AI Act Amendment to Regulation (EU) No 168/2013 Art. 105 AI Act
+Amendment to Directive 2014/90/EU Art. 106 AI Act Amendment to Directive
+(EU) 2016/797 Art. 107 AI Act Amendment to Regulation (EU) 2018/858 Art.
+108 AI Act Amendments to Regulation (EU) 2018/1139 Art. 109 AI Act
+Amendment to Regulation (EU) 2019/2144 Art. 110 AI Act Amendment to
+Directive (EU) 2020/1828 Art. 111 AI Act AI systems already placed on
+the market or put into service and general-purpose AI models already
+placed on the marked Art. 112 AI Act Evaluation and review Art. 113 AI
+Act Entry into force and application
