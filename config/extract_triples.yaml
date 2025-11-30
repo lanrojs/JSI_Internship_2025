@@ -1,0 +1,23 @@
+llm:
+  server: "http://localhost:11434"        # Ollama server URL
+  model: "gemma3:4b-it-qat"               # LLM model for triple extraction
+  temperature: 0.2                        # Sampling temperature
+  request_timeout: 120                    # HTTP timeout in seconds
+  max_retries: 3                          # Max LLM retry attempts
+  retry_wait: 2.0                         # Base wait (seconds) between retries
+
+run:
+  progress_every: 1                       # Print progress every N claims
+  debug: false                            # Print prompts and raw LLM replies
+
+embeddings:
+  model_id: "BAAI/bge-small-en-v1.5"      # SentenceTransformer model for triples
+  batch_size: 64                          # Batch size for embedding triples
+  normalize: true                         # Normalize embedding vectors
+
+sqlite:
+  table_name: "claims"                    # Table name for triples in SQLite
+
+templates:
+  dir: "prompts"                          # Folder with Jinja2 templates
+  triples: "extract_triples.j2"           # Template used to extract triples

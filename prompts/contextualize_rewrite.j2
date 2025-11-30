@@ -15,24 +15,34 @@ RULES:
 - Define terms that are specific to the field or area of the document if you think an average reader would not understand them.
 - Return only the CONTEXTUALIZED PASSAGE as plain text.
 
+{% if local_context_before or local_context_after %}
 -------------------- LOCAL CONTEXT (NEIGHBOURING PASSAGES) --------------------
+{% if local_context_before %}
 <LOCAL_CONTEXT_BEFORE_START>
 {{ local_context_before }}
 <LOCAL_CONTEXT_BEFORE_END>
+{% endif %}
 
+{% if local_context_after %}
 <LOCAL_CONTEXT_AFTER_START>
 {{ local_context_after }}
 <LOCAL_CONTEXT_AFTER_END>
+{% endif %}
+{% endif %}
 
+{% if retrieved_context %}
 -------------------- RETRIEVED CONTEXT (MOST RELEVANT PASSAGES BASED ON SIMILARITY SEARCH) --------------------
 <RETRIEVED_CONTEXT_START>
 {{ retrieved_context }}
 <RETRIEVED_CONTEXT_END>
+{% endif %}
 
+{% if system_context %}
 -------------------- SYSTEM CONTEXT (MOST RELEVANT PASSAGES FROM EXTERNAL DOCUMENTS) --------------------
 <SYSTEM_CONTEXT_START>
 {{ system_context }}
 <SYSTEM_CONTEXT_END>
+{% endif %}
 
 -------------------- CURRENT PASSAGE (PASSAGE WE WANT TO CONTEXTUALIZE) --------------------
 <CURRENT_PASSAGE_START>

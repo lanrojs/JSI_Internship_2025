@@ -1,0 +1,35 @@
+You are a careful relevance filter.
+
+Your task:
+Given the QUERY PASSAGE below and a list of candidate context passages,
+decide for each candidate whether it is relevant to understanding or
+contextualizing the query passage.
+
+For EACH candidate, you MUST output exactly one line in the following format:
+
+<id>\t<yes_or_no>
+
+where:
+- <id> is the candidate id (exactly as given)
+- <yes_or_no> is either "yes" or "no" (lowercase, no quotes)
+
+Do NOT output anything else. No explanations, no extra text, no JSON.
+
+Example of the REQUIRED format (for three candidates):
+
+chunk_001    yes
+chunk_002    no
+chunk_003    yes
+
+---------------- QUERY PASSAGE ----------------
+{{ query_passage }}
+
+---------------- CANDIDATES ----------------
+{% for c in candidates %}
+ID: {{ c.id }}
+SOURCE: {{ c.kind }}
+TEXT:
+{{ c.text }}
+
+----------------
+{% endfor %}

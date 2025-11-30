@@ -7,9 +7,9 @@ Input:
 
 Output:
   <base>_triples.jsonl  # structured triples (JSONL)
-  <base>_triples.sqlite # table: claims
+  <base>_triples.sqlite # table: claims (or name from config)
 
-SQLite schema:
+SQLite schema (default TABLE_NAME="claims"):
   claim_id      TEXT PRIMARY KEY
   claim_text    TEXT NOT NULL
   subject       TEXT
@@ -33,60 +33,62 @@ from typing import List, Dict, Any, Union
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+from jinja2 import Environment, FileSystemLoader
+import yaml
 
 
 # --------------------------------------------------------------------
-# Config
+# Load configuration YAML
 # --------------------------------------------------------------------
 
-OLLAMA_SERVER = "http://localhost:11434"
-OLLAMA_MODEL = "gemma3:4b-it-qat"
-
-REQUEST_TIMEOUT = 120
-TEMPERATURE = 0.2
-MAX_RETRIES = 3
-RETRY_WAIT = 2.0
-
-EMBED_MODEL_ID = "BAAI/bge-small-en-v1.5"
-BATCH_SIZE = 64
-NORMALIZE_EMBEDDINGS = True
-
-TABLE_NAME = "claims"
+CONFIG_PATH = Path(__file__).resolve().parent / "config" / "extract_triples.yaml"
+with CONFIG_PATH.open("r", encoding="utf-8") as f:
+    CFG = yaml.safe_load(f)
 
 
 # --------------------------------------------------------------------
-# Prompt
+# Config (from YAML)
 # --------------------------------------------------------------------
 
-TOSTRUCTURE_PROMPT = """You are an information extraction model.
+# LLM / Ollama
+OLLAMA_SERVER = CFG["llm"]["server"]
+OLLAMA_MODEL = CFG["llm"]["model"]
+REQUEST_TIMEOUT = CFG["llm"]["request_timeout"]
+TEMPERATURE = CFG["llm"]["temperature"]
+MAX_RETRIES = CFG["llm"]["max_retries"]
+RETRY_WAIT = CFG["llm"]["retry_wait"]
 
-Given a short factual or normative statement (a legal or regulatory claim),
-identify its logical components and return them as JSON with the keys:
+# Embeddings
+EMBED_MODEL_ID = CFG["embeddings"]["model_id"]
+BATCH_SIZE = CFG["embeddings"]["batch_size"]
+NORMALIZE_EMBEDDINGS = CFG["embeddings"]["normalize"]
 
-- subject: the main actor or entity performing or constrained.
-- predicate: the main verb or relation phrase expressing the action or relation.
-- object: the entity, concept, or outcome affected.
+# SQLite
+TABLE_NAME = CFG["sqlite"]["table_name"]
 
-Rules:
-- Keep the extracted text spans concise, literal, and faithful to the claim.
-- Preserve terminology (do not paraphrase unnecessarily).
-- If an element is missing, set it to "" (empty string).
-- Output MUST be a single JSON object with exactly these keys and string values.
-- Do not output explanations, comments, or any text before or after the JSON.
+# Prompts (Jinja2)
+PROMPTS_DIR = Path(__file__).resolve().parent / CFG["templates"]["dir"]
+TRIPLES_TEMPLATE_NAME = CFG["templates"]["triples"]
 
-Example:
-Input: Providers of general-purpose AI models must publish summaries of training data.
-Output:
-{{"subject": "providers of general-purpose AI models",
-  "predicate": "must publish",
-  "object": "summaries of training data"}}
+# Run / logging
+PROGRESS_EVERY = CFG["run"]["progress_every"]
+DEBUG = CFG["run"]["debug"]
 
-Now extract for this claim:
 
-"{claim_text}"
+# --------------------------------------------------------------------
+# Jinja2 environment
+# --------------------------------------------------------------------
 
-Output only the JSON object.
-"""
+_env = Environment(
+    loader=FileSystemLoader(str(PROMPTS_DIR)),
+    autoescape=False,
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
+
+def render_prompt(template_name: str, **kwargs) -> str:
+    template = _env.get_template(template_name)
+    return template.render(**kwargs)
 
 
 # --------------------------------------------------------------------
@@ -117,6 +119,7 @@ def call_ollama(prompt: str) -> str:
             wait = RETRY_WAIT * (2 ** attempt)
             print(f"[warn] LLM call failed ({e}) → retry in {wait:.1f}s")
             time.sleep(wait)
+
     return ""
 
 
@@ -205,6 +208,7 @@ def extract_triples_from_file(input_path: Union[str, Path]) -> Path:
     if not input_path.exists():
         raise FileNotFoundError(input_path)
 
+    # Strip trailing _claims from stem to get base
     base = re.sub(r"_claims$", "", input_path.stem)
     jsonl_out = input_path.with_name(f"{base}_triples.jsonl")
     sqlite_out = input_path.with_name(f"{base}_triples.sqlite")
@@ -217,7 +221,9 @@ def extract_triples_from_file(input_path: Union[str, Path]) -> Path:
     t0 = time.time()
 
     # Count total lines for progress logging
-    total_lines = sum(1 for _ in input_path.open("r", encoding="utf-8"))
+    with input_path.open("r", encoding="utf-8") as f:
+        total_lines = sum(1 for line in f if line.strip())
+
 
     # --- Read input JSONL and extract structure via LLM ---
     with input_path.open("r", encoding="utf-8") as f, jsonl_out.open("w", encoding="utf-8") as out:
@@ -237,8 +243,23 @@ def extract_triples_from_file(input_path: Union[str, Path]) -> Path:
             if not claim_id or not claim_text:
                 continue
 
-            prompt = TOSTRUCTURE_PROMPT.format(claim_text=claim_text)
+            prompt = render_prompt(
+                TRIPLES_TEMPLATE_NAME,
+                claim_text=claim_text,
+            )
+
+            if DEBUG:
+                print("\n========== TRIPLES PROMPT ==========")
+                print(prompt)
+                print("========== END PROMPT ==============\n")
+
             reply = call_ollama(prompt)
+
+            if DEBUG:
+                print("===== TRIPLES LLM RAW RESPONSE =====")
+                print(reply)
+                print("===== END RAW RESPONSE =====\n")
+
             parsed = safe_json_object(reply)
 
             subject = clean_slot(parsed.get("subject", ""))
@@ -256,7 +277,8 @@ def extract_triples_from_file(input_path: Union[str, Path]) -> Path:
             out.write(json.dumps(rec, ensure_ascii=False) + "\n")
             structured_claims.append(rec)
 
-            print(f"[{i}/{total_lines}] processed {claim_id}", flush=True)
+            if (i % PROGRESS_EVERY == 0) or (i == total_lines):
+                print(f"[{i}/{total_lines}] processed {claim_id}", flush=True)
 
     # --- Embedding phase ---
     print(f"\nEmbedding {len(structured_claims)} structured claims...")
@@ -307,7 +329,7 @@ def extract_triples_from_file(input_path: Union[str, Path]) -> Path:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print(f"Usage: python extract_triples.py INPUT_CLAIMS_JSONL", file=sys.stderr)
+        print("Usage: python extract_triples.py INPUT_CLAIMS_JSONL", file=sys.stderr)
         sys.exit(1)
 
     input_path = Path(sys.argv[1])

@@ -1,0 +1,39 @@
+You are an information extraction model.
+
+Given a short factual or normative statement (a legal or regulatory claim),
+identify its logical components and return them as JSON objects with the keys:
+
+- subject: the main actor or entity performing or constrained.
+- predicate: the main verb or relation phrase expressing the action or relation.
+- object: the entity, concept, or outcome affected.
+
+RULES:
+- Keep the extracted text spans concise, literal, and faithful to the claim.
+- Preserve terminology from the claim (avoid unnecessary paraphrasing).
+- Each JSON object MUST represent a single atomic fact:
+  * Split into multiple objects if the claim contains multiple objects,
+    multiple constraints, or lists joined by "and"/"or".
+- If an element is missing or not clearly expressed, set it to "" (empty string).
+- The output MUST be a JSON array of one or more JSON objects.
+- Each JSON object MUST have exactly the keys:
+  "subject", "predicate", and "object", all string values.
+- Do not output explanations, comments, or any text before or after the JSON.
+
+Example:
+Input claim:
+Providers of general-purpose AI models must publish summaries of training data.
+
+Output JSON:
+[
+  {
+    "subject": "providers of general-purpose AI models",
+    "predicate": "must publish",
+    "object": "summaries of training data"
+  }
+]
+
+Now extract the triple(s) for this claim:
+
+"{{ claim_text }}"
+
+Return only the JSON array.

@@ -25,8 +25,8 @@ Outputs:
       "chunk": ...,
       "contextualized_chunk": ...,
       "local_neighbor_ids": [...],
-      "doc_retrieved_ids": [...],
-      "system_retrieved_ids": [...]
+      "doc_retrieved_ids": [...],     # if USE_LLM_RELEVANCE=True → only relevant IDs
+      "system_retrieved_ids": [...]   # if USE_LLM_RELEVANCE=True → only relevant IDs
     }
 
   <base>_contextualized.sqlite (table: contextualized_chunks)
@@ -45,10 +45,10 @@ Modes:
 
 System context (use_system / k_sys):
   - External corpus = multiple .sqlite files in a folder (SYSTEM_DB_DIR).
-  - Each DB is expected to contain table raw_chunks(doc, id, chunk, emb).
+  - Each DB is expected to contain table contextualized_chunks(doc, id, chunk_raw, context_prefix, chunk_ctx, emb_ctx).
   - For each chunk, we:
       * embed the current passage (BGE-small)
-      * run dense + BM25 retrieval over all external raw_chunks
+      * run dense + BM25 retrieval over all external contextualized_chunks
       * combine scores (dense + BM25) and take top SYSTEM_TOP_K segments
   - Controlled by:
       USE_SYSTEM    (bool)
@@ -62,60 +62,67 @@ import re
 import sqlite3
 from pathlib import Path
 from typing import List, Dict, Any, Union, Tuple
-
 import urllib.request
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from jinja2 import Environment, FileSystemLoader
 import argparse
+import yaml
 
+
+# Load configuration YAML
+CONFIG_PATH = Path(__file__).resolve().parent / "config" / "contextualize.yaml"
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    CFG = yaml.safe_load(f)
 
 # --------------------------------------------------------------------
-# Config
+# Config (from YAML)
 # --------------------------------------------------------------------
 
 # LLM setup (Ollama)
-OLLAMA_SERVER = "http://localhost:11434"
-OLLAMA_MODEL = "mistral:7b" #gemma2:9b
-REQUEST_TIMEOUT = 120
-TEMPERATURE = 0.1
-MAX_RETRIES = 3
-RETRY_WAIT = 2.0
+OLLAMA_SERVER = CFG["llm"]["server"]
+OLLAMA_MODEL = CFG["llm"]["model"]
+REQUEST_TIMEOUT = CFG["llm"]["request_timeout"]
+TEMPERATURE = CFG["llm"]["temperature"]
+MAX_RETRIES = CFG["llm"]["max_retries"]
+RETRY_WAIT = CFG["llm"]["retry_wait"]
 
 # Embedding model
-EMBED_MODEL_ID = "BAAI/bge-small-en-v1.5"
-NORMALIZE_EMBEDDINGS = True
+EMBED_MODEL_ID = CFG["embeddings"]["model_id"]
+NORMALIZE_EMBEDDINGS = CFG["embeddings"]["normalize"]
 
 # Local context window (same-doc neighbors)
-LOCAL_BEFORE = 1
-LOCAL_AFTER = 1
+LOCAL_BEFORE = CFG["local_context"]["before"]
+LOCAL_AFTER = CFG["local_context"]["after"]
 
 # Retrieval config (over *previous* contextualized chunks in the same doc)
-TOP_K_RETRIEVE = 2  # k_doc
+TOP_K_RETRIEVE = CFG["doc_retrieval"]["top_k"]
+DEDUP_RETRIEVED_AGAINST_LOCAL = CFG["doc_retrieval"]["dedup_against_local"]
 
-# Whether to avoid reusing passages that are already local neighbors
-DEDUP_RETRIEVED_AGAINST_LOCAL = True
+# System context (external corpus of contextualized chunks)
+USE_SYSTEM = CFG["system_context"]["enabled"]
+SYSTEM_DB_DIR = Path(__file__).resolve().parent / CFG["system_context"]["db_dir"]
+SYSTEM_TOP_K = CFG["system_context"]["top_k"]
 
-# System context (external corpus of raw chunks)
-USE_SYSTEM = False  # flip to True to enable external retrieval
-SYSTEM_DB_DIR = Path(__file__).resolve().parent / "system_corpus"
-SYSTEM_TOP_K = 2  # k_sys
+# LLM-based relevance filtering
+USE_LLM_RELEVANCE = CFG["relevance_filter"]["enabled"]
+RELEVANCE_DEBUG = CFG["relevance_filter"]["debug"]
 
 # Dense/BM25 combination weights (after min–max normalization)
-DENSE_WEIGHT = 0.6
-BM25_WEIGHT = 0.4
+DENSE_WEIGHT = CFG["retrieval_weights"]["dense"]
+BM25_WEIGHT = CFG["retrieval_weights"]["bm25"]
 
-TABLE_NAME = "contextualized_chunks"
+TABLE_NAME = CFG["sqlite"]["table_name"]
 
 # Prompt templates (Jinja2)
-PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
-PREFIX_TEMPLATE_NAME = "contextualize_prefix.j2"
-REWRITE_TEMPLATE_NAME = "contextualize_rewrite.j2"
+PROMPTS_DIR = Path(__file__).resolve().parent / CFG["templates"]["dir"]
+PREFIX_TEMPLATE_NAME = CFG["templates"]["prefix"]
+REWRITE_TEMPLATE_NAME = CFG["templates"]["rewrite"]
+RELEVANCE_TEMPLATE_NAME = CFG["templates"]["relevance"]
 
 # Modes
-MODE_PREFIX = "prefix"
-MODE_REWRITE = "rewrite"
-
+MODE_PREFIX = CFG["modes"]["prefix"]
+MODE_REWRITE = CFG["modes"]["rewrite"]
 
 # --------------------------------------------------------------------
 # Jinja2 environment
@@ -164,6 +171,103 @@ def call_ollama(server: str, model: str, prompt: str, timeout: int, temperature:
             time.sleep(wait)
 
     return ""
+
+
+# --------------------------------------------------------------------
+# LLM relevance helper
+# --------------------------------------------------------------------
+
+# --------------------------------------------------------------------
+# LLM relevance helper (multi-candidate, yes/no per ID)
+# --------------------------------------------------------------------
+
+# --------------------------------------------------------------------
+# LLM relevance helper (multi-candidate, yes/no per ID) — DEBUG VERSION
+# --------------------------------------------------------------------
+
+def filter_relevant_candidates(
+    query_passage: str,
+    unified: Dict[str, Tuple[str, str, str]],
+    doc: str,
+) -> Tuple[set, set]:
+    """
+    Run a SINGLE LLM call to decide which doc/system candidates are relevant.
+
+    unified: id -> (kind, text, src_type)
+    Returns (relevant_doc_ids, relevant_system_ids)
+    """
+
+    # Build candidate list for LLM: only doc/system, NOT local neighbors
+    candidates = []
+    for cid, (kind, txt, src_type) in unified.items():
+        if kind in ("doc", "system") and txt.strip():
+            candidates.append({
+                "id": cid,
+                "kind": kind,
+                "text": txt,
+            })
+
+    if not candidates:
+        return set(), set()
+
+    # Build prompt ----------------------------------------------------
+    prompt = render_prompt(
+        RELEVANCE_TEMPLATE_NAME,
+        query_passage=query_passage,
+        candidates=candidates,
+        doc=doc,
+    )
+
+    # DEBUG PRINT – PROMPT
+    if RELEVANCE_DEBUG:
+        print("\n===== RELEVANCE FILTER PROMPT =====")
+        print(prompt)
+        print("===== END RELEVANCE FILTER PROMPT =====\n")
+
+    # Call LLM --------------------------------------------------------
+    reply = call_ollama(
+        OLLAMA_SERVER,
+        OLLAMA_MODEL,
+        prompt,
+        REQUEST_TIMEOUT,
+        TEMPERATURE,
+    ).strip()
+
+    # DEBUG PRINT – LLM REPLY
+    if RELEVANCE_DEBUG:
+        print("===== RELEVANCE FILTER RAW LLM REPLY =====")
+        print(reply)
+        print("===== END RELEVANCE FILTER RAW LLM REPLY =====\n")
+
+    # Parse yes/no lines ----------------------------------------------
+    rel_doc_ids: set = set()
+    rel_sys_ids: set = set()
+
+    for line in reply.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        # Format: "<id>\t<yes|no>"
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+
+        cid = parts[0].strip()
+        decision = parts[-1].strip().lower()
+
+        if decision not in ("yes", "no"):
+            continue
+        if decision == "no":
+            continue
+
+        kind = unified.get(cid, (None, "", ""))[0]
+        if kind == "doc":
+            rel_doc_ids.add(cid)
+        elif kind == "system":
+            rel_sys_ids.add(cid)
+
+    return rel_doc_ids, rel_sys_ids
 
 
 # --------------------------------------------------------------------
@@ -285,7 +389,7 @@ def insert_rows(conn: sqlite3.Connection, rows: List[Dict[str, Any]]):
 
 
 # --------------------------------------------------------------------
-# System corpus helpers (external raw_chunks)
+# System corpus helpers (external contextualized chunks)
 # --------------------------------------------------------------------
 
 def from_blob(blob: bytes) -> np.ndarray:
@@ -295,20 +399,19 @@ def from_blob(blob: bytes) -> np.ndarray:
 
 def load_system_corpus(db_dir: Path) -> Dict[str, Any]:
     """
-    Load an external corpus from all .sqlite files in `db_dir`.
+    Load an external corpus from all *contextualized* .sqlite files in `db_dir`.
 
-    Expected schema in each DB:
-        raw_chunks(doc TEXT, id TEXT, chunk TEXT, emb BLOB)
+    Expected schema in each DB (from contextualize.py):
+        contextualized_chunks(
+            doc            TEXT NOT NULL,
+            id             TEXT PRIMARY KEY,
+            chunk_raw      TEXT NOT NULL,
+            context_prefix TEXT NOT NULL,
+            chunk_ctx      TEXT NOT NULL,
+            emb_ctx        BLOB NOT NULL
+        )
 
-    Returns a dict with:
-        {
-          "texts": List[str],
-          "embs": List[np.ndarray],
-          "tokens": List[List[str]],
-          "df": Dict[str, int],
-          "doc_lengths": List[int],
-          "ids": List[str],        # chunk IDs (e.g. "gdpr_42")
-        }
+    We use `chunk_ctx` and `emb_ctx` as the system passages and embeddings.
     """
     texts: List[str] = []
     embs: List[np.ndarray] = []
@@ -324,37 +427,42 @@ def load_system_corpus(db_dir: Path) -> Dict[str, Any]:
     for db_path in sorted(db_dir.glob("*.sqlite")):
         try:
             conn = sqlite3.connect(db_path)
-            # Check for raw_chunks
+
+            # Check for contextualized_chunks table
             rows = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='raw_chunks'"
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='contextualized_chunks'"
             ).fetchall()
             if not rows:
                 conn.close()
                 continue
 
             count = 0
-            for doc, chunk_id, chunk_text, emb_blob in conn.execute(
-                "SELECT doc, id, chunk, emb FROM raw_chunks"
+            for doc, chunk_id, chunk_raw, context_prefix, chunk_ctx, emb_ctx_blob in conn.execute(
+                "SELECT doc, id, chunk_raw, context_prefix, chunk_ctx, emb_ctx FROM contextualized_chunks"
             ):
-                if not chunk_text:
+                if not chunk_ctx:
                     continue
-                vec = from_blob(emb_blob)
-                texts.append(chunk_text)
+
+                vec = from_blob(emb_ctx_blob)
+                texts.append(chunk_ctx)
                 embs.append(vec)
-                toks = simple_tokenize(chunk_text)
+
+                toks = simple_tokenize(chunk_ctx)
                 tokens.append(toks)
                 doc_lengths.append(len(toks))
+
                 for t in set(toks):
                     df[t] = df.get(t, 0) + 1
+
                 ids.append(str(chunk_id))
                 count += 1
 
             conn.close()
-            print(f"[system] loaded {count} raw chunks from {db_path.name}")
+            print(f"[system] loaded {count} contextualized chunks from {db_path.name}")
         except Exception as e:
             print(f"[system] failed reading {db_path}: {e}")
 
-    print(f"[system] total external raw chunks: {len(texts)} from {db_dir}")
+    print(f"[system] total external contextualized chunks: {len(texts)} from {db_dir}")
     return {
         "texts": texts,
         "embs": embs,
@@ -436,67 +544,155 @@ def contextualize_document(
         passage = item["chunk"]
         chunk_id = item["id"]
 
-        # 1) Local context (raw neighbors) → IDs for debugging
+        # ============================================================
+        # 1) Build LOCAL context (RAW TEXT)
+        # ============================================================
         start_local = max(0, i - LOCAL_BEFORE)
         end_local = min(n_chunks, i + 1 + LOCAL_AFTER)
-        local_neighbor_ids = [
-            chunks[j]["id"]
-            for j in range(start_local, end_local)
-            if j != i
-        ]
-        before = [chunks[j]["chunk"] for j in range(start_local, i)]
-        after = [chunks[j]["chunk"] for j in range(i + 1, end_local)]
 
-        local_context_before = "\n\n".join(before) or "(no previous local context)"
-        local_context_after = "\n\n".join(after) or "(no following local context)"
+        local_before_ids = [chunks[j]["id"] for j in range(start_local, i)]
+        local_after_ids = [chunks[j]["id"] for j in range(i + 1, end_local)]
 
+        local_before_texts = [chunks[j]["chunk"] for j in range(start_local, i)]
+        local_after_texts = [chunks[j]["chunk"] for j in range(i + 1, end_local)]
 
-        # 2) Prepare query embedding once per chunk
+        # ============================================================
+        # 2) Embed query chunk once
+        # ============================================================
         q_emb = embedder.encode(
             [passage],
             convert_to_numpy=True,
             normalize_embeddings=NORMALIZE_EMBEDDINGS,
         )[0]
 
-        # 3) Retrieval over previous contextualized chunks (document context)
-        retrieved_context = "(no retrieved context)"
-        doc_retrieved_ids: List[str] = []
+        # ============================================================
+        # 3) Document retrieval (contextualized)
+        # ============================================================
+        doc_retrieved_ids = []
+        doc_retrieved_texts = []
+
         if ctx_texts:
             dense_scores = [float(np.dot(e, q_emb)) for e in ctx_embs]
-
             query_tokens = simple_tokenize(passage)
             bm25_sc = bm25_scores(query_tokens, ctx_tokens, df_doc, doc_lengths)
 
             top_indices = rank_indices_combined(dense_scores, bm25_sc, TOP_K_RETRIEVE)
 
-            # Optionally deduplicate: skip retrieved chunks that are already local neighbors
+            # Avoid local overlaps if configured
             if DEDUP_RETRIEVED_AGAINST_LOCAL:
-                candidate_indices = [
-                    j for j in top_indices
-                    if ctx_ids[j] not in local_neighbor_ids
-                ]
-            else:
-                candidate_indices = top_indices
+                already_local = set(local_before_ids + local_after_ids)
+                top_indices = [j for j in top_indices if ctx_ids[j] not in already_local]
 
-            if candidate_indices:
-                retrieved_context = "\n\n---\n\n".join(
-                    ctx_texts[j] for j in candidate_indices
-                )
-                doc_retrieved_ids = [ctx_ids[j] for j in candidate_indices]
+            doc_retrieved_ids = [ctx_ids[j] for j in top_indices]
+            doc_retrieved_texts = [ctx_texts[j] for j in top_indices]
 
+        # ============================================================
+        # 4) System retrieval (contextualized)
+        # ============================================================
+        system_retrieved_ids = []
+        system_retrieved_texts = []
 
-        # 4) System context (external corpus of raw_chunks)
-        system_context = "(no system context)"
-        system_retrieved_ids: List[str] = []
         if system_corpus:
-            system_context, system_retrieved_ids = retrieve_system_context(
+            sys_text, sys_ids = retrieve_system_context(
                 passage,
                 q_emb,
                 system_corpus,
                 SYSTEM_TOP_K,
             )
 
-        # 5) Prompt LLM to produce context (prefix or rewrite)
+            if sys_ids:
+                sys_chunks = sys_text.split("\n\n---\n\n")
+                system_retrieved_ids = sys_ids
+                system_retrieved_texts = sys_chunks
+
+        # ============================================================
+        # 5) Build unified candidate list and deduplicate by ID
+        # ============================================================
+        # Priority rule C:
+        # local_before/raw → local_after/raw → doc/contextualized → system/contextualized
+
+        candidate_list = []
+
+        for cid, txt in zip(local_before_ids, local_before_texts):
+            candidate_list.append(("local_before", cid, txt, "raw"))
+
+        for cid, txt in zip(local_after_ids, local_after_texts):
+            candidate_list.append(("local_after", cid, txt, "raw"))
+
+        for cid, txt in zip(doc_retrieved_ids, doc_retrieved_texts):
+            candidate_list.append(("doc", cid, txt, "ctx"))
+
+        for cid, txt in zip(system_retrieved_ids, system_retrieved_texts):
+            candidate_list.append(("system", cid, txt, "ctx"))
+
+        # Deduplicate by ID, preserving FIRST occurrence (priority respected)
+        unified: Dict[str, Tuple[str, str, str]] = {}  # id → (kind, text, source_type)
+        for kind, cid, txt, src_type in candidate_list:
+            if cid not in unified:
+                unified[cid] = (kind, txt, src_type)
+
+               # ============================================================
+        # 5.5) Optional LLM relevance filtering over doc/system items
+        #      (single call, yes/no per ID)
+        # ============================================================
+        if USE_LLM_RELEVANCE and unified:
+            # Ask the LLM once which doc/system candidates are relevant
+            rel_doc_ids, rel_system_ids = filter_relevant_candidates(
+                query_passage=passage,
+                unified=unified,
+                doc=doc,
+            )
+
+            filtered_unified: Dict[str, Tuple[str, str, str]] = {}
+            new_doc_retrieved_ids: List[str] = []
+            new_system_retrieved_ids: List[str] = []
+
+            # Preserve ordering inherent in `unified`
+            for cid, (kind, txt, src_type) in unified.items():
+                if kind == "doc":
+                    if cid not in rel_doc_ids:
+                        continue
+                    new_doc_retrieved_ids.append(cid)
+                elif kind == "system":
+                    if cid not in rel_system_ids:
+                        continue
+                    new_system_retrieved_ids.append(cid)
+
+                # Local neighbors are always kept (never filtered by LLM)
+                filtered_unified[cid] = (kind, txt, src_type)
+
+            unified = filtered_unified
+            doc_retrieved_ids = new_doc_retrieved_ids
+            system_retrieved_ids = new_system_retrieved_ids
+
+
+        # ============================================================
+        # 6) Reconstruct final context buckets from unified set
+        # ============================================================
+        final_local_before: List[str] = []
+        final_local_after: List[str] = []
+        final_doc_ctx: List[str] = []
+        final_system_ctx: List[str] = []
+
+        for cid, (kind, txt, src_type) in unified.items():
+            if kind == "local_before":
+                final_local_before.append(txt)
+            elif kind == "local_after":
+                final_local_after.append(txt)
+            elif kind == "doc":
+                final_doc_ctx.append(txt)
+            elif kind == "system":
+                final_system_ctx.append(txt)
+
+        local_context_before = "\n\n".join(final_local_before)
+        local_context_after = "\n\n".join(final_local_after)
+        retrieved_context = "\n\n---\n\n".join(final_doc_ctx)
+        system_context = "\n\n---\n\n".join(final_system_ctx)
+
+
+        # ============================================================
+        # 7) Build LLM prompt (prefix or rewrite)
+        # ============================================================
         if mode == MODE_PREFIX:
             template_name = PREFIX_TEMPLATE_NAME
         else:
@@ -512,7 +708,7 @@ def contextualize_document(
             doc=doc,
         )
 
-        # DEBUG: show the first part of the actual prompt
+        # DEBUG: show the prompt
         print("\n===== PROMPT DEBUG =====")
         print(prompt)
         print("===== END PROMPT DEBUG =====\n")
@@ -524,12 +720,10 @@ def contextualize_document(
             REQUEST_TIMEOUT,
             TEMPERATURE,
         ).strip()
+
         print("\n===== LLM RAW RESPONSE =====")
         print(reply)
         print("===== END LLM RAW RESPONSE =====\n")
-
-
-
 
         if mode == MODE_PREFIX:
             context_prefix = reply or "(No additional context found.)"
@@ -539,36 +733,30 @@ def contextualize_document(
             contextualized = reply or passage
             context_prefix = contextualized
 
-        # 6) Embed ONLY the contextualized text
+        # 8) Embed ONLY the contextualized text
         emb_ctx = embedder.encode(
             [contextualized],
             convert_to_numpy=True,
             normalize_embeddings=NORMALIZE_EMBEDDINGS,
         )[0]
 
-        # 7) Collect outputs (JSON) including retrieval debugging info
-                # 7) Collect outputs (JSON) including retrieval debugging info
-        # 7) Collect outputs (JSON) including retrieval debugging info
-        result_obj = {
+        # 9) Collect outputs (JSON) including retrieval debugging info
+        local_neighbor_ids = local_before_ids + local_after_ids
+
+        result_obj: Dict[str, Any] = {
             "doc": doc,
             "id": chunk_id,
             "chunk": passage,
-        }
-
-        # Insert context_prefix directly after "chunk" ONLY in prefix mode
-        if mode == MODE_PREFIX:
-            result_obj["context_prefix"] = context_prefix
-
-        # Then continue with the rest
-        result_obj.update({
             "contextualized_chunk": contextualized,
             "local_neighbor_ids": local_neighbor_ids,
             "doc_retrieved_ids": doc_retrieved_ids,
             "system_retrieved_ids": system_retrieved_ids,
-        })
+        }
+
+        if mode == MODE_PREFIX:
+            result_obj["context_prefix"] = context_prefix
 
         results.append(result_obj)
-
 
         rows.append({
             "doc": doc,
@@ -579,7 +767,7 @@ def contextualize_document(
             "emb_ctx": emb_ctx,
         })
 
-        # 8) Update retrieval memory for document-level context
+        # 10) Update retrieval memory for document-level context
         ctx_texts.append(contextualized)
         ctx_embs.append(emb_ctx)
         toks = simple_tokenize(contextualized)
